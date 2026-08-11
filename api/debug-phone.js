@@ -25,6 +25,14 @@ function maskPhone(p) {
 
 module.exports = async (req, res) => {
   const phone = req.query.phone;
+  const id = req.query.id;
+
+  if (id) {
+    // Точечный запрос по known ID (карточка владельца аккаунта) — не массовая выгрузка PII.
+    const one = await insales(`/admin/clients/${encodeURIComponent(id)}.json`);
+    res.status(one.status).json({ mode: "by_id", id, phone: one.json ? one.json.phone : null });
+    return;
+  }
 
   if (!phone) {
     // Без параметра — просто берём образец реальных клиентов, чтобы знать формат телефона.
