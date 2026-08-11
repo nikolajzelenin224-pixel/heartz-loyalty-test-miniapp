@@ -83,6 +83,15 @@ module.exports = async (req, res) => {
     }
     return;
   }
+  if (req.method === "GET" && req.query.debug_client) {
+    try {
+      const clients = await insalesGet(`/admin/clients.json?phone=${encodeURIComponent(req.query.debug_client)}`);
+      res.status(200).json({ sample: clients });
+    } catch (e) {
+      res.status(500).json({ error: String(e.message || e) });
+    }
+    return;
+  }
 
   if (req.method !== "POST") {
     res.status(405).json({ error: "method_not_allowed" });
