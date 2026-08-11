@@ -122,9 +122,9 @@ module.exports = async (req, res) => {
     if (existingCode) {
       const raw = await kvGet(`code:${existingCode}`);
       if (raw) {
-        await kvSet(`tg:${tgId}`, raw);
+        await kvSet(`tg:${tgId}`, `${raw}|${existingCode}`);
         const [level, ltv] = raw.split("|");
-        res.status(200).json({ level, ltv: Number(ltv), source: "existing" });
+        res.status(200).json({ level, ltv: Number(ltv), code: existingCode, source: "existing" });
         return;
       }
     }
@@ -146,9 +146,9 @@ module.exports = async (req, res) => {
     const raw = `${level}|${ltv}`;
     await kvSet(`code:${code}`, raw);
     await kvSet(`phone:${normalized}`, code);
-    await kvSet(`tg:${tgId}`, raw);
+    await kvSet(`tg:${tgId}`, `${raw}|${code}`);
 
-    res.status(200).json({ level, ltv, source: client ? "insales" : "lead" });
+    res.status(200).json({ level, ltv, code, source: client ? "insales" : "lead" });
   } catch (e) {
     res.status(502).json({ error: "upstream_unavailable", detail: String(e.message || e) });
   }

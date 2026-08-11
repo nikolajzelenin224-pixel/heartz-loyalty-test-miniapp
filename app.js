@@ -36,7 +36,10 @@ function nextLevelName(level) {
   return { I: "II", II: "III", III: "IV" }[level] || "";
 }
 
+let currentCode = null;
+
 function renderLevel(data) {
+  currentCode = data.code || null;
   document.getElementById("level-badge").textContent = data.level === "0" ? "—" : data.level;
   document.getElementById("level-name").textContent = LEVEL_NAMES[data.level] || data.level;
   document.getElementById("stat-ltv").textContent = data.ltv.toLocaleString("ru-RU") + " ₽";
@@ -200,18 +203,18 @@ document.getElementById("reset-btn").addEventListener("click", () => {
 
 document.getElementById("fatal-retry").addEventListener("click", init);
 
-// Промокод — пока заглушка, реальная выдача через InSales будет в отдельном блоке.
-document.getElementById("promo-btn").addEventListener("click", async () => {
-  const btn = document.getElementById("promo-btn");
-  btn.disabled = true;
-  btn.textContent = "Генерируем...";
-  await new Promise(r => setTimeout(r, 600));
-  const fake = "HZ-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-48H";
+// Код клиента — он же код скидки на сайте. Скидка на кассе считается по
+// текущему уровню автоматически (см. api/external-discount.js), отдельного
+// одноразового промокода не выдаём.
+document.getElementById("promo-btn").addEventListener("click", () => {
   const box = document.getElementById("promo-result");
-  box.textContent = `${fake} — действует 48 часов, один раз`;
+  if (!currentCode) {
+    box.textContent = "Код недоступен. Нажмите «Ввести другой код» и войдите заново.";
+    box.classList.remove("hidden");
+    return;
+  }
+  box.textContent = `HEARTZ-${currentCode} — введите этот код в поле «Промокод» при оформлении заказа на сайте. Скидка зависит от вашего уровня.`;
   box.classList.remove("hidden");
-  btn.disabled = false;
-  btn.textContent = "Получить новый промокод";
 });
 
 // Если приложение открыто по диплинку t.me/heartzinfobot/app?startapp=HEARTZ-XXXXXXXX,

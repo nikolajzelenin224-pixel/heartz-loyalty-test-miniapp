@@ -44,10 +44,10 @@ module.exports = async (req, res) => {
       return;
     }
 
-    await kvSet(`tg:${tgId}`, raw);
+    await kvSet(`tg:${tgId}`, `${raw}|${normalized}`);
 
     const [level, ltv] = raw.split("|");
-    res.status(200).json({ level, ltv: Number(ltv) });
+    res.status(200).json({ level, ltv: Number(ltv), code: normalized });
   } catch (e) {
     res.status(502).json({ error: "storage_unavailable" });
   }

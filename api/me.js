@@ -25,8 +25,8 @@ module.exports = async (req, res) => {
       res.status(404).json({ error: "not_linked" });
       return;
     }
-    const [level, ltv] = raw.split("|");
-    res.status(200).json({ level, ltv: Number(ltv) });
+    const [level, ltv, code] = raw.split("|");
+    res.status(200).json({ level, ltv: Number(ltv), code: code || null });
   } catch (e) {
     res.status(502).json({ error: "storage_unavailable" });
   }
