@@ -26,7 +26,6 @@ function verifyInitData(initDataRaw, botToken, maxAgeSeconds = 86400) {
   const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
   const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
-  // Сравнение постоянным временем, чтобы не давать таймингового сайд-канала.
   const a = Buffer.from(computedHash, "hex");
   const b = Buffer.from(hash, "hex");
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {

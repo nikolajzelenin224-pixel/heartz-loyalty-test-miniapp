@@ -19,11 +19,24 @@
   <!-- Ввод кода (первый вход, код ещё не привязан) -->
   <div id="screen-code" class="screen hidden">
     <div class="logo">HEARTZ</div>
-    <h1>Введите код клиента</h1>
-    <p class="muted">Код вида HEARTZ-XXXXXXXX — есть в письме о заказе или в личном кабинете на сайте.</p>
-    <input id="code-input" type="text" placeholder="HEARTZ-XXXXXXXX" autocomplete="off" autocapitalize="characters" maxlength="16">
-    <button id="code-submit" class="btn-primary">Подтвердить</button>
-    <div id="code-error" class="error hidden"></div>
+
+    <div id="code-block">
+      <h1>Введите код клиента</h1>
+      <p class="muted">Код вида HEARTZ-XXXXXXXX — есть в письме о заказе или в личном кабинете на сайте.</p>
+      <input id="code-input" type="text" placeholder="HEARTZ-XXXXXXXX" autocomplete="off" autocapitalize="characters" maxlength="16">
+      <button id="code-submit" class="btn-primary">Подтвердить</button>
+      <div id="code-error" class="error hidden"></div>
+      <button id="show-phone-btn" class="btn-ghost">Нет кода? Ввести номер телефона</button>
+    </div>
+
+    <div id="phone-block" class="hidden">
+      <h1>Введите номер телефона</h1>
+      <p class="muted">Тот же номер, что указывали при заказе на сайте.</p>
+      <input id="phone-input" type="tel" placeholder="+7 900 000-00-00" autocomplete="off" maxlength="18">
+      <button id="phone-submit" class="btn-primary">Найти меня</button>
+      <div id="phone-error" class="error hidden"></div>
+      <button id="show-code-btn" class="btn-ghost">У меня есть код</button>
+    </div>
   </div>
 
   <!-- Основной экран уровня -->

@@ -49,7 +49,7 @@ h1{
   max-width:320px;
 }
 
-#code-input{
+#code-input, #phone-input{
   width:100%;
   max-width:320px;
   background:var(--card);
@@ -64,7 +64,7 @@ h1{
   margin-bottom:14px;
   font-family:"Consolas","Menlo",monospace;
 }
-#code-input:focus{outline:none; border-color:var(--accent);}
+#code-input:focus, #phone-input:focus{outline:none; border-color:var(--accent);}
 
 .btn-primary{
   width:100%;

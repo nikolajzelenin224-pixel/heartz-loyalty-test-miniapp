@@ -27,8 +27,22 @@ function normalizePhone(raw) {
   return d;
 }
 
-function toInsalesPhone(normalized) {
-  return "+" + normalized;
+// В InSales телефоны реальных клиентов сохранены в разных форматах ("+79521234567",
+// "89521234567", "79521234567" — зависит от того, как был оформлен заказ). Поиск по
+// ?phone= — точное совпадение строки, поэтому пробуем все варианты по очереди.
+function insalesPhoneVariants(normalized) {
+  return [`+${normalized}`, `8${normalized.slice(1)}`, normalized];
+}
+
+async function findInsalesClient(normalized) {
+  for (const variant of insalesPhoneVariants(normalized)) {
+    const clients = await insalesGet(`/admin/clients.json?phone=${encodeURIComponent(variant)}`);
+    if (Array.isArray(clients)) {
+      const match = clients.find((c) => c.phone === variant);
+      if (match) return match;
+    }
+  }
+  return null;
 }
 
 function levelFromLtv(ltv) {
@@ -72,27 +86,6 @@ async function sumPaidLtv(clientId) {
 }
 
 module.exports = async (req, res) => {
-  // ВРЕМЕННЫЙ режим отладки — проверить реальные имена полей заказа перед тем,
-  // как доверять sumPaidLtv(). Удалить блок ниже после проверки.
-  if (req.method === "GET" && req.query.debug_orders) {
-    try {
-      const orders = await insalesGet(`/admin/orders.json?client_id=${req.query.debug_orders}&per_page=2`);
-      res.status(200).json({ sample: orders });
-    } catch (e) {
-      res.status(500).json({ error: String(e.message || e) });
-    }
-    return;
-  }
-  if (req.method === "GET" && req.query.debug_client) {
-    try {
-      const clients = await insalesGet(`/admin/clients.json?phone=${encodeURIComponent(req.query.debug_client)}`);
-      res.status(200).json({ sample: clients });
-    } catch (e) {
-      res.status(500).json({ error: String(e.message || e) });
-    }
-    return;
-  }
-
   if (req.method !== "POST") {
     res.status(405).json({ error: "method_not_allowed" });
     return;
@@ -136,10 +129,8 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 2. ищем в InSales по телефону
-    const insalesPhone = toInsalesPhone(normalized);
-    const clients = await insalesGet(`/admin/clients.json?phone=${encodeURIComponent(insalesPhone)}`);
-    const client = Array.isArray(clients) ? clients.find((c) => c.phone === insalesPhone) : null;
+    // 2. ищем в InSales по телефону (разные форматы записи)
+    const client = await findInsalesClient(normalized);
 
     let level, ltv;
     if (client) {
