@@ -32,4 +32,18 @@ async function kvIncrWithExpire(key, windowSeconds) {
   return Number(count);
 }
 
-module.exports = { kvGet, kvSet, kvDel, kvIncrWithExpire };
+// Выполняет пачку команд одним запросом. commands — массив вида [["SET","k","v"], ...].
+async function kvPipeline(commands) {
+  const res = await fetch(`${KV_URL}/pipeline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${KV_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(commands),
+  });
+  if (!res.ok) throw new Error(`kv_pipeline_error_${res.status}`);
+  return res.json();
+}
+
+module.exports = { kvGet, kvSet, kvDel, kvIncrWithExpire, kvPipeline };
