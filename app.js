@@ -15,6 +15,39 @@ if (tg) {
   }
 }
 
+// Мобильные WebView (в том числе внутри Telegram) не всегда честно уменьшают
+// layout-высоту документа, когда появляется экранная клавиатура — именно из-за этого
+// экран визуально "плывёт"/прыгает на полях ввода. CSS-юниты vh/dvh здесь ненадёжны:
+// внутри встроенных WebView они не всегда синхронизированы с реальной видимой
+// областью. window.visualViewport — единственный источник, который её действительно
+// знает, поэтому держим высоту #app привязанной именно к нему, пересчитывая на каждое
+// изменение (открытие/закрытие клавиатуры, поворот и т.д.).
+const appEl = document.getElementById("app");
+function syncViewportHeight() {
+  const vv = window.visualViewport;
+  const h = vv ? vv.height : window.innerHeight;
+  appEl.style.height = h + "px";
+}
+syncViewportHeight();
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", syncViewportHeight);
+  window.visualViewport.addEventListener("scroll", syncViewportHeight);
+} else {
+  window.addEventListener("resize", syncViewportHeight);
+}
+
+// Когда клавиатура открывается, видимая область (и вместе с ней #app) становится
+// ниже — если активное поле оказалось за её пределами, докручиваем его в видимую
+// область сами, а не полагаемся на автоскролл браузера (это и было источником
+// "прыжков" на экранах входа/регистрации, где несколько полей подряд).
+document.addEventListener("focusin", (e) => {
+  const tag = e.target.tagName;
+  if (tag !== "INPUT" && tag !== "TEXTAREA") return;
+  setTimeout(() => {
+    e.target.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, 150);
+});
+
 const screens = {
   loading: document.getElementById("screen-loading"),
   code: document.getElementById("screen-code"),
