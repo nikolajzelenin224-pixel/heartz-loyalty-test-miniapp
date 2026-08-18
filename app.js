@@ -20,7 +20,6 @@ const screens = {
   code: document.getElementById("screen-code"),
   level: document.getElementById("screen-level"),
   fatal: document.getElementById("screen-fatal"),
-  boxReveal: document.getElementById("screen-box-reveal"),
 };
 
 // Код лояльности — строго HEARTZ-XXXXXXXX по нашему алфавиту. Всё остальное, что ввели
@@ -50,6 +49,19 @@ function normalizeCode(raw) {
   return (raw || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
+// Вкладки на экране уровня — "Лояльность" и "Mystery Box" живут на одном экране,
+// чтобы после открытия бокса человек сразу видел и карточку, и свою скидку, не уходя
+// на отдельный экран.
+function showTab(name) {
+  const isBox = name === "box";
+  document.getElementById("tab-btn-loyalty").classList.toggle("active", !isBox);
+  document.getElementById("tab-btn-box").classList.toggle("active", isBox);
+  document.getElementById("tab-loyalty").classList.toggle("hidden", isBox);
+  document.getElementById("tab-box").classList.toggle("hidden", !isBox);
+}
+document.getElementById("tab-btn-loyalty").addEventListener("click", () => showTab("loyalty"));
+document.getElementById("tab-btn-box").addEventListener("click", () => showTab("box"));
+
 const LEVEL_NAMES = {
   "0": "ПОКА НЕТ ПОКУПОК",
   I: "УРОВЕНЬ I",
@@ -76,10 +88,11 @@ function resetPromoResult() {
   document.getElementById("promo-copied").classList.remove("fade-out");
 }
 
-function renderLevel(data) {
+// Только обновляет цифры/прогресс на вкладке "Лояльность", не трогает то, какой
+// экран/вкладка сейчас видны — нужно отдельно от renderLevel(), чтобы обновлять уровень
+// и после открытия бокса, не сбивая при этом активную вкладку "Mystery Box".
+function updateLevelDisplay(data) {
   currentCode = data.code || null;
-  resetPromoResult();
-  setBack(null);
   document.getElementById("level-badge").textContent = data.level === "0" ? "—" : data.level;
   document.getElementById("level-name").textContent = LEVEL_NAMES[data.level] || data.level;
   document.getElementById("stat-ltv").textContent = data.ltv.toLocaleString("ru-RU") + " ₽";
@@ -90,7 +103,6 @@ function renderLevel(data) {
   if (data.level === "0") {
     fill.style.width = "0%";
     text.textContent = "Сделайте первую покупку, чтобы получить уровень";
-    show("level");
     return;
   }
 
@@ -104,7 +116,14 @@ function renderLevel(data) {
     fill.style.width = pct + "%";
     text.textContent = `До уровня ${nextLevelName(data.level)}: ${(next - data.ltv).toLocaleString("ru-RU")} ₽`;
   }
+}
+
+function renderLevel(data) {
+  updateLevelDisplay(data);
+  resetPromoResult();
+  setBack(null);
   show("level");
+  showTab("loyalty");
 }
 
 async function postJSON(path, body) {
@@ -224,7 +243,8 @@ async function submitCode(code) {
   showFatal("Не удалось связаться с сервером. Попробуйте ещё раз.");
 }
 
-async function submitPhone(phone) {
+async function submitPhone(phone, opts) {
+  const confirmOverwrite = !!(opts && opts.confirmOverwrite);
   const name = document.getElementById("name-input").value.trim();
   const email = document.getElementById("email-input").value.trim();
   const birthDate = document.getElementById("birthdate-input").value || null;
@@ -247,11 +267,29 @@ async function submitPhone(phone) {
 
   show("loading");
   const { ok, status, data } = await postJSON("/api/register-phone", {
-    initData: tg.initData, phone, name, email, birthDate, consent,
+    initData: tg.initData, phone, name, email, birthDate, consent, confirmOverwrite,
   });
 
   if (ok) {
     renderLevel(data);
+    return;
+  }
+  if (status === 409 && data?.error === "profile_conflict") {
+    // У этого tg_id уже есть анкета с другими именем/почтой — не перезаписываем молча,
+    // показываем "было / станет" и просим подтвердить.
+    const prev = data.existingProfile || {};
+    const message = `Ранее вы регистрировались как «${prev.name || "—"}» (${prev.email || "—"}). Обновить данные на «${name}» (${email})?`;
+    const proceed = () => submitPhone(phone, { confirmOverwrite: true });
+    if (tg && typeof tg.showConfirm === "function") {
+      tg.showConfirm(message, (confirmed) => {
+        if (confirmed) proceed();
+        else showPhoneScreen();
+      });
+    } else if (window.confirm(message)) {
+      proceed();
+    } else {
+      showPhoneScreen();
+    }
     return;
   }
   if (status === 400) {
@@ -288,43 +326,63 @@ async function submitPhone(phone) {
   showFatal("Не удалось связаться с сервером. Попробуйте ещё раз.");
 }
 
-async function submitBoxCode(code) {
+// fromTab=true — код введён во вкладке "Mystery Box" на экране уровня (человек уже
+// вошёл в лояльность); fromTab=false — код введён на самом первом экране, до входа.
+// В обоих случаях бокс теперь всегда связывается с аккаунтом лояльности (см.
+// ensureLoyaltyAccount в api/mystery-box/redeem.js) — при неудаче просто возвращаем
+// человека туда, откуда он пришёл, с понятной ошибкой на месте.
+async function submitBoxCode(code, opts) {
+  const fromTab = !!(opts && opts.fromTab);
+
+  function fail(message, showSupport) {
+    if (fromTab) {
+      show("level");
+      showTab("box");
+      const err = document.getElementById("box-tab-error");
+      err.textContent = message;
+      err.classList.remove("hidden");
+      document.getElementById("box-support-btn").classList.toggle("hidden", !showSupport);
+    } else {
+      showCodeScreen();
+      const err = document.getElementById("code-error");
+      err.textContent = message;
+      err.classList.remove("hidden");
+      document.getElementById("code-support-btn").classList.toggle("hidden", !showSupport);
+    }
+  }
+
   show("loading");
   const { ok, status, data } = await postJSON("/api/mystery-box/redeem", { initData: tg.initData, code, consent: true });
 
   if (ok) {
+    updateLevelDisplay({ level: data.level, ltv: data.ltv, code: data.loyaltyCode });
+    resetPromoResult();
     document.getElementById("box-reveal-image").src = data.imageUrl;
-    show("boxReveal");
-    setBack(loadMe);
+    document.getElementById("box-reveal-wrap").classList.remove("hidden");
+    document.getElementById("box-tab-error").classList.add("hidden");
+    document.getElementById("box-support-btn").classList.add("hidden");
+    show("level");
+    showTab("box");
+    setBack(null);
     return;
   }
   if (status === 404) {
-    showCodeScreen();
-    const err = document.getElementById("code-error");
-    err.textContent = "Код не найден — ни как код лояльности, ни как код бокса. Проверьте написание.";
-    err.classList.remove("hidden");
+    fail("Код не найден — ни как код лояльности, ни как код бокса. Проверьте написание.", false);
     return;
   }
   if (status === 409) {
-    showCodeScreen();
-    const err = document.getElementById("code-error");
-    err.textContent = "Этот бокс уже был активирован — с другого аккаунта. Если это ошибка, напишите в поддержку.";
-    err.classList.remove("hidden");
-    document.getElementById("code-support-btn").classList.remove("hidden");
+    fail("Этот бокс уже был активирован — с другого аккаунта. Если это ошибка, напишите в поддержку.", true);
     return;
   }
   if (status === 429) {
-    showCodeScreen();
-    const err = document.getElementById("code-error");
-    err.textContent = "Слишком много попыток. Попробуйте позже.";
-    err.classList.remove("hidden");
+    fail("Слишком много попыток. Попробуйте позже.", false);
     return;
   }
   if (status === 401) {
     showFatal("Не удалось подтвердить аккаунт Telegram. Попробуйте закрыть и снова открыть приложение из бота.");
     return;
   }
-  showFatal("Не удалось связаться с сервером. Попробуйте ещё раз.");
+  fail("Не удалось связаться с сервером. Попробуйте ещё раз.", false);
 }
 
 document.getElementById("code-submit").addEventListener("click", () => {
@@ -357,7 +415,15 @@ document.getElementById("box-share-btn").addEventListener("click", () => {
   }
 });
 
-document.getElementById("box-back-btn").addEventListener("click", loadMe);
+document.getElementById("box-tab-submit").addEventListener("click", () => {
+  const code = normalizeCode(document.getElementById("box-tab-input").value);
+  if (!code) return;
+  submitBoxCode(code, { fromTab: true });
+});
+
+document.getElementById("box-tab-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("box-tab-submit").click();
+});
 
 document.getElementById("code-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("code-submit").click();

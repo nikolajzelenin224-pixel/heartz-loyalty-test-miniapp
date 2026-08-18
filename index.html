@@ -57,41 +57,55 @@
   <!-- Основной экран уровня -->
   <div id="screen-level" class="screen hidden">
     <div class="logo">HEARTZ</div>
-    <div class="level-card">
-      <div class="level-label">Ваш уровень</div>
-      <div class="level-badge" id="level-badge">—</div>
-      <div class="level-name" id="level-name">—</div>
 
-      <div class="progress-wrap">
-        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-        <div class="progress-text" id="progress-text">—</div>
+    <div class="tabs">
+      <button id="tab-btn-loyalty" class="tab-btn active" type="button">Лояльность</button>
+      <button id="tab-btn-box" class="tab-btn" type="button">Mystery Box</button>
+    </div>
+
+    <div id="tab-loyalty" class="tab-panel">
+      <div class="level-card">
+        <div class="level-label">Ваш уровень</div>
+        <div class="level-badge" id="level-badge">—</div>
+        <div class="level-name" id="level-name">—</div>
+
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="progress-text" id="progress-text">—</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-value" id="stat-ltv">—</div>
+          <div class="stat-label">Всего покупок</div>
+        </div>
+      </div>
+
+      <button id="promo-btn" class="btn-primary">Код для скидки на сайте</button>
+      <div id="promo-result" class="promo-result hidden">
+        <div id="promo-code" class="promo-code"></div>
+        <div id="promo-copied" class="promo-copied hidden">Скопировано ✓</div>
+        <p id="promo-hint" class="promo-hint">Введите этот код на странице «Корзина» на сайте — скидка применится по вашему уровню.</p>
       </div>
     </div>
 
-    <div class="stats-row">
-      <div class="stat">
-        <div class="stat-value" id="stat-ltv">—</div>
-        <div class="stat-label">Всего покупок</div>
-      </div>
-    </div>
+    <!-- Mystery Box — код можно ввести и здесь, не выходя из аккаунта лояльности -->
+    <div id="tab-box" class="tab-panel hidden">
+      <p class="muted">Введите код с коробки Mystery Box, чтобы увидеть, что внутри.</p>
+      <input id="box-tab-input" type="text" placeholder="Код с коробки" autocomplete="off" autocapitalize="characters" maxlength="40">
+      <button id="box-tab-submit" class="btn-primary">Открыть</button>
+      <div id="box-tab-error" class="error hidden"></div>
 
-    <button id="promo-btn" class="btn-primary">Код для скидки на сайте</button>
-    <div id="promo-result" class="promo-result hidden">
-      <div id="promo-code" class="promo-code"></div>
-      <div id="promo-copied" class="promo-copied hidden">Скопировано ✓</div>
-      <p id="promo-hint" class="promo-hint">Введите этот код на странице «Корзина» на сайте — скидка применится по вашему уровню.</p>
+      <div id="box-reveal-wrap" class="hidden">
+        <img id="box-reveal-image" class="box-reveal-image" alt="Reveal Card">
+        <button id="box-share-btn" class="btn-primary">Поделиться</button>
+      </div>
+
+      <button id="box-support-btn" class="btn-ghost hidden">Написать в поддержку</button>
     </div>
 
     <button id="reset-btn" class="btn-ghost">Ввести другой код</button>
-  </div>
-
-  <!-- Reveal Card (Mystery Box) -->
-  <div id="screen-box-reveal" class="screen hidden">
-    <div class="logo">HEARTZ</div>
-    <img id="box-reveal-image" class="box-reveal-image" alt="Reveal Card">
-    <button id="box-share-btn" class="btn-primary">Поделиться</button>
-    <button id="box-back-btn" class="btn-ghost">Назад</button>
-    <button id="box-support-btn" class="btn-ghost">Написать в поддержку</button>
   </div>
 
   <!-- Ошибка -->

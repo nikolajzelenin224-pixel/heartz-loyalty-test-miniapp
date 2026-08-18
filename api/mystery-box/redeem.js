@@ -18,6 +18,46 @@ const { put } = require("@vercel/blob");
 
 const RATE_LIMIT_MAX = 8;
 const RATE_LIMIT_WINDOW = 600; // 10 минут
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+function randomLeadCode() {
+  let s = "";
+  for (let i = 0; i < 8; i++) s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  return s;
+}
+
+async function generateUniqueLeadCode() {
+  for (let i = 0; i < 5; i++) {
+    const code = randomLeadCode();
+    const exists = await kvGet(`code:${code}`);
+    if (!exists) return code;
+  }
+  throw new Error("code_generation_failed");
+}
+
+// Открытие бокса теперь всегда даёт доступ к полноценному аккаунту лояльности — человек
+// после Reveal Card сразу видит свой уровень и код скидки, а не только картинку.
+// Если у Telegram-аккаунта уже есть код — просто возвращаем его. Если это первое
+// касание с приложением вообще (человек пришёл только с коробкой, без истории заказов) —
+// заводим "лид" уровня 0, как и при регистрации по телефону без найденного клиента
+// в InSales (см. register-phone.js). Телефон при этом не запрашиваем и не привязываем —
+// только код и Telegram-аккаунт; телефон появится позже, если человек довяжет заказы.
+async function ensureLoyaltyAccount(tgId) {
+  const raw = await kvGet(`tg:${tgId}`);
+  if (raw) {
+    const [level, ltv, loyaltyCode] = raw.split("|");
+    return { level, ltv: Number(ltv) || 0, loyaltyCode: loyaltyCode || null };
+  }
+  const code = await generateUniqueLeadCode();
+  await kvSet(`code:${code}`, "0|0");
+  await kvSet(`tg:${tgId}`, `0|0|${code}`);
+  await kvSet(`codeowner:${code}`, tgId);
+  // Согласие на ПДн уже было дано на экране ввода кода (обязательный чекбокс перед
+  // отправкой) — фиксируем время, если это первое согласие этого tg_id в системе.
+  const consentAlready = await kvGet(`consent:${tgId}`);
+  if (!consentAlready) await kvSet(`consent:${tgId}`, new Date().toISOString());
+  return { level: "0", ltv: 0, loyaltyCode: code };
+}
 
 async function sendBotPhoto(chatId, photoUrl, caption) {
   const token = process.env.BOT_TOKEN;
@@ -80,8 +120,17 @@ module.exports = async (req, res) => {
         res.status(409).json({ error: "box_already_claimed" });
         return;
       }
-      // Тот же человек открывает повторно — идемпотентно показываем ту же карточку.
-      res.status(200).json({ imageUrl: record.imageUrl, code: normalized, alreadyOpened: true });
+      // Тот же человек открывает повторно — идемпотентно показываем ту же карточку,
+      // заодно возвращаем актуальный уровень лояльности (вдруг успел что-то купить).
+      const account = await ensureLoyaltyAccount(tgId);
+      res.status(200).json({
+        imageUrl: record.imageUrl,
+        boxCode: normalized,
+        alreadyOpened: true,
+        level: account.level,
+        ltv: account.ltv,
+        loyaltyCode: account.loyaltyCode,
+      });
       return;
     }
 
@@ -103,6 +152,8 @@ module.exports = async (req, res) => {
     // Если record уже существовал, но redeemed:false — это код после admin-отката
     // (тестовый бокс), картинка в Blob уже закэширована и переиспользуется как есть.
 
+    const account = await ensureLoyaltyAccount(tgId);
+
     record.redeemed = true;
     record.redeemedBy = tgId;
     record.redeemedAt = new Date().toISOString();
@@ -114,7 +165,14 @@ module.exports = async (req, res) => {
       "HEARTZ Special Supply — ваш Reveal Card открыт. Этим фото можно поделиться с друзьями или в Stories."
     );
 
-    res.status(200).json({ imageUrl: record.imageUrl, code: normalized, alreadyOpened: false });
+    res.status(200).json({
+      imageUrl: record.imageUrl,
+      boxCode: normalized,
+      alreadyOpened: false,
+      level: account.level,
+      ltv: account.ltv,
+      loyaltyCode: account.loyaltyCode,
+    });
   } catch (e) {
     console.error("mystery_box_redeem_error", e);
     res.status(502).json({ error: "upstream_unavailable", detail: String(e.message || e) });

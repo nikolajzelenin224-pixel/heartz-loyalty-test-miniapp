@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
-  const { initData, phone, name, email, birthDate, consent } = body || {};
+  const { initData, phone, name, email, birthDate, consent, confirmOverwrite } = body || {};
 
   const check = verifyInitData(initData, process.env.BOT_TOKEN);
   if (!check.ok) {
@@ -126,6 +126,29 @@ module.exports = async (req, res) => {
     if (!normalized) {
       res.status(400).json({ error: "bad_phone_format" });
       return;
+    }
+
+    // Если у этого tg_id уже есть сохранённая анкета с ДРУГИМИ именем/почтой — не
+    // перезаписываем её молча. Отдаём текущие данные обратно клиенту, чтобы он показал
+    // человеку "было / станет" и попросил подтверждение; повторный вызов с
+    // confirmOverwrite:true проходит дальше как обычно.
+    if (!confirmOverwrite) {
+      const existingProfileRaw = await kvGet(`profile:${tgId}`);
+      if (existingProfileRaw) {
+        let existingProfile = null;
+        try { existingProfile = JSON.parse(existingProfileRaw); } catch { existingProfile = null; }
+        if (existingProfile && (existingProfile.name !== cleanName || existingProfile.email !== cleanEmail)) {
+          res.status(409).json({
+            error: "profile_conflict",
+            existingProfile: {
+              name: existingProfile.name,
+              email: existingProfile.email,
+              birthDate: existingProfile.birthDate || null,
+            },
+          });
+          return;
+        }
+      }
     }
 
     // Анкета хранится отдельно от code:/phone:/tg: (те остаются компактными и без ПДн,
