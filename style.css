@@ -9,33 +9,39 @@
 
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
-html{
-  touch-action:manipulation;
-  overflow-x:hidden;
+/* Жёстко фиксируем весь документ на весь экран и запрещаем ему самому скроллиться/
+   "прыгать" (типичный для Telegram WebView на iOS баг — resize-скачки, rubber-band
+   при потягивании за край). Скроллится только #app внутри — это создаёт стабильную
+   "рамку" под мобильное приложение вместо резинового документа. */
+html, body{
+  position:fixed;
+  inset:0;
   width:100%;
+  height:100%;
+  overflow:hidden;
+  overscroll-behavior:none;
+  touch-action:manipulation;
 }
 body{
   background:var(--bg);
   color:var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  min-height:100vh;
-  min-height:100dvh;
-  width:100%;
-  overflow-x:hidden;
-  overscroll-behavior:none;
   -webkit-text-size-adjust:100%;
 }
 
 #app{
-  position:relative;
+  position:absolute;
+  inset:0;
   width:100%;
   max-width:480px;
   margin:0 auto;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
 }
 
 .screen{
-  min-height:100vh;
-  min-height:100dvh;
+  min-height:100%;
   width:100%;
   display:flex;
   flex-direction:column;
@@ -162,6 +168,25 @@ h1{
   text-align:center;
   margin-top:10px;
 }
+
+.conflict-box{
+  width:100%;
+  max-width:320px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:16px;
+  margin-bottom:14px;
+  text-align:center;
+}
+.conflict-text{
+  color:var(--text);
+  font-size:13px;
+  line-height:1.5;
+  margin:0 0 14px;
+}
+.conflict-box .btn-primary{margin-bottom:8px;}
+.conflict-box .btn-ghost{margin-top:0;}
 
 .spinner{
   width:28px;height:28px;

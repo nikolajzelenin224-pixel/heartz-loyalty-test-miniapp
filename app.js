@@ -157,8 +157,17 @@ function showPhoneScreen() {
   document.getElementById("code-block").classList.add("hidden");
   document.getElementById("phone-block").classList.remove("hidden");
   document.getElementById("phone-support-btn").classList.add("hidden");
+  document.getElementById("phone-conflict").classList.add("hidden");
   show("code");
   setBack(showCodeScreen);
+}
+
+function formatDateRu(iso) {
+  if (!iso) return null;
+  const parts = String(iso).split("-");
+  if (parts.length !== 3) return iso;
+  const [y, m, d] = parts;
+  return `${d}.${m}.${y}`;
 }
 
 // Поддержка мини-приложения — @HeartzSupportBot. Показываем кнопку только там, где
@@ -275,21 +284,30 @@ async function submitPhone(phone, opts) {
     return;
   }
   if (status === 409 && data?.error === "profile_conflict") {
-    // У этого tg_id уже есть анкета с другими именем/почтой — не перезаписываем молча,
-    // показываем "было / станет" и просим подтвердить.
+    // По этому номеру телефона в системе уже сохранены другие ФИО/почта (неважно, с
+    // какого именно Telegram-аккаунта — анкета привязана к номеру). Не перезаписываем
+    // молча: даём выбор — подставить сохранённые данные и продолжить с ними, или
+    // явно обновить их на только что введённые.
+    showPhoneScreen();
     const prev = data.existingProfile || {};
-    const message = `Ранее вы регистрировались как «${prev.name || "—"}» (${prev.email || "—"}). Обновить данные на «${name}» (${email})?`;
-    const proceed = () => submitPhone(phone, { confirmOverwrite: true });
-    if (tg && typeof tg.showConfirm === "function") {
-      tg.showConfirm(message, (confirmed) => {
-        if (confirmed) proceed();
-        else showPhoneScreen();
-      });
-    } else if (window.confirm(message)) {
-      proceed();
-    } else {
-      showPhoneScreen();
-    }
+    const prevBirth = formatDateRu(prev.birthDate);
+    const panel = document.getElementById("phone-conflict");
+    document.getElementById("phone-conflict-text").textContent =
+      `По вашему номеру телефона в системе уже указаны другие данные: ${prev.name || "—"}, ${prev.email || "—"}` +
+      (prevBirth ? `, ${prevBirth}` : "") +
+      `. Использовать их или вы хотите обновить свои данные?`;
+    panel.classList.remove("hidden");
+
+    document.getElementById("phone-conflict-use").onclick = () => {
+      document.getElementById("name-input").value = prev.name || "";
+      document.getElementById("email-input").value = prev.email || "";
+      document.getElementById("birthdate-input").value = prev.birthDate || "";
+      panel.classList.add("hidden");
+    };
+    document.getElementById("phone-conflict-update").onclick = () => {
+      panel.classList.add("hidden");
+      submitPhone(phone, { confirmOverwrite: true });
+    };
     return;
   }
   if (status === 400) {

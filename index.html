@@ -47,6 +47,12 @@
         <input type="checkbox" id="phone-consent">
         <span>Согласен(на) на <a href="/privacy.html" id="phone-privacy-link" target="_blank" rel="noopener">обработку персональных данных</a></span>
       </label>
+      <div id="phone-conflict" class="conflict-box hidden">
+        <p id="phone-conflict-text" class="conflict-text"></p>
+        <button id="phone-conflict-use" class="btn-primary">Использовать эти данные</button>
+        <button id="phone-conflict-update" class="btn-ghost">Обновить мои данные</button>
+      </div>
+
       <button id="phone-submit" class="btn-primary">Зарегистрироваться</button>
       <div id="phone-error" class="error hidden"></div>
       <button id="show-code-btn" class="btn-ghost">У меня есть код</button>
