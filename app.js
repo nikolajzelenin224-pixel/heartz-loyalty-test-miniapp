@@ -4,7 +4,16 @@
 // напрямую — только целиком пересылается на сервер, который сам достаёт из неё tg_id.
 
 const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) {
+  tg.ready();
+  tg.expand();
+  // Не даём свайпом вниз "утащить" приложение и вызвать дрожание/скачки интерфейса —
+  // весь скролл должен быть только внутри самого приложения.
+  if (typeof tg.disableVerticalSwipes === "function") tg.disableVerticalSwipes();
+  if (typeof tg.setHeaderColor === "function") {
+    try { tg.setHeaderColor("secondary_bg_color"); } catch { /* не все клиенты поддерживают */ }
+  }
+}
 
 const screens = {
   loading: document.getElementById("screen-loading"),
@@ -22,6 +31,19 @@ const LOYALTY_CODE_RE = /^HEARTZ-?[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/;
 function show(name) {
   Object.values(screens).forEach(s => s.classList.add("hidden"));
   screens[name].classList.remove("hidden");
+}
+
+// Единая кнопка "назад" в верхнем левом углу — видна там, где реально есть куда
+// вернуться, и всегда ведёт на предыдущий по смыслу экран (а не просто "домой").
+const backBtn = document.getElementById("screen-back-btn");
+function setBack(handler) {
+  if (handler) {
+    backBtn.classList.remove("hidden");
+    backBtn.onclick = handler;
+  } else {
+    backBtn.classList.add("hidden");
+    backBtn.onclick = null;
+  }
 }
 
 function normalizeCode(raw) {
@@ -43,9 +65,21 @@ function nextLevelName(level) {
 }
 
 let currentCode = null;
+let promoCopiedTimer = null;
+
+// Плашка с кодом и "Скопировано" не должна переживать переход на новый экран —
+// иначе после повторного открытия уровня видно "Скопировано" от прошлого раза.
+function resetPromoResult() {
+  clearTimeout(promoCopiedTimer);
+  document.getElementById("promo-result").classList.add("hidden");
+  document.getElementById("promo-copied").classList.add("hidden");
+  document.getElementById("promo-copied").classList.remove("fade-out");
+}
 
 function renderLevel(data) {
   currentCode = data.code || null;
+  resetPromoResult();
+  setBack(null);
   document.getElementById("level-badge").textContent = data.level === "0" ? "—" : data.level;
   document.getElementById("level-name").textContent = LEVEL_NAMES[data.level] || data.level;
   document.getElementById("stat-ltv").textContent = data.ltv.toLocaleString("ru-RU") + " ₽";
@@ -87,6 +121,7 @@ async function postJSON(path, body) {
 function showFatal(text) {
   document.getElementById("fatal-text").textContent = text;
   show("fatal");
+  setBack(null);
 }
 
 function showCodeScreen() {
@@ -94,6 +129,9 @@ function showCodeScreen() {
   document.getElementById("phone-block").classList.add("hidden");
   document.getElementById("code-support-btn").classList.add("hidden");
   show("code");
+  // Если уровень уже был загружен в этой сессии (человек нажал "Ввести другой код"
+  // случайно) — даём вернуться назад без повторного ввода кода.
+  setBack(currentCode ? loadMe : null);
 }
 
 function showPhoneScreen() {
@@ -101,6 +139,7 @@ function showPhoneScreen() {
   document.getElementById("phone-block").classList.remove("hidden");
   document.getElementById("phone-support-btn").classList.add("hidden");
   show("code");
+  setBack(showCodeScreen);
 }
 
 // Поддержка мини-приложения — @HeartzSupportBot. Показываем кнопку только там, где
@@ -256,6 +295,7 @@ async function submitBoxCode(code) {
   if (ok) {
     document.getElementById("box-reveal-image").src = data.imageUrl;
     show("boxReveal");
+    setBack(loadMe);
     return;
   }
   if (status === 404) {
@@ -379,12 +419,20 @@ async function copyPromoCode() {
   const fullCode = `HEARTZ-${currentCode}`;
   codeEl.textContent = fullCode;
   hintEl.textContent = "Введите этот код на странице «Корзина» на сайте — скидка применится по вашему уровню.";
+  clearTimeout(promoCopiedTimer);
   copiedEl.classList.add("hidden");
+  copiedEl.classList.remove("fade-out");
   box.classList.remove("hidden");
 
   try {
     await navigator.clipboard.writeText(fullCode);
     copiedEl.classList.remove("hidden");
+    // Плашка "Скопировано" — временное подтверждение действия, а не постоянная часть
+    // экрана: через 2 секунды начинаем плавно гасить, через 2.6 — прячем совсем.
+    promoCopiedTimer = setTimeout(() => {
+      copiedEl.classList.add("fade-out");
+      promoCopiedTimer = setTimeout(() => copiedEl.classList.add("hidden"), 600);
+    }, 2000);
   } catch {
     // Буфер обмена недоступен (редкий случай в некоторых WebView) — код всё равно
     // показан крупно и его можно выделить/скопировать вручную (user-select: all в CSS).

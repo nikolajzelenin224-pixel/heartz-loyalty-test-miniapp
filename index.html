@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>HEARTZ · Лояльность</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="style.css">
@@ -10,6 +10,8 @@
 <body>
 
 <div id="app">
+
+  <button id="screen-back-btn" class="back-arrow hidden" aria-label="Назад">←</button>
 
   <!-- Загрузка -->
   <div id="screen-loading" class="screen">
@@ -23,7 +25,7 @@
     <div id="code-block">
       <h1>Введите код</h1>
       <p class="muted">Код лояльности вида HEARTZ-XXXXXXXX (из письма или личного кабинета на сайте) или код с коробки Mystery Box.</p>
-      <input id="code-input" type="text" placeholder="HEARTZ-XXXXXXXX или код с коробки" autocomplete="off" autocapitalize="characters" maxlength="40">
+      <input id="code-input" type="text" placeholder="Код лояльности или код бокса" autocomplete="off" autocapitalize="characters" maxlength="40">
       <label class="consent-row">
         <input type="checkbox" id="code-consent">
         <span>Согласен(на) на <a href="/privacy.html" id="code-privacy-link" target="_blank" rel="noopener">обработку персональных данных</a></span>
@@ -36,11 +38,11 @@
 
     <div id="phone-block" class="hidden">
       <h1>Регистрация</h1>
-      <p class="muted">Тот же номер, что указывали при заказе на сайте. Остальные поля нужны для программы лояльности.</p>
-      <input id="phone-input" type="tel" placeholder="+7 900 000-00-00" autocomplete="off" maxlength="18">
-      <input id="name-input" type="text" placeholder="Имя и фамилия" autocomplete="off" maxlength="80">
-      <input id="email-input" type="email" placeholder="Email" autocomplete="off" maxlength="120">
-      <input id="birthdate-input" type="date" placeholder="Дата рождения (необязательно)">
+      <p class="muted">Уровень лояльности определяется по номеру телефона, указанному при заказе(-ах).</p>
+      <input id="phone-input" type="tel" inputmode="tel" placeholder="+7 900 000-00-00" autocomplete="tel" maxlength="18">
+      <input id="name-input" type="text" placeholder="Имя и фамилия" autocomplete="name" maxlength="80">
+      <input id="email-input" type="email" inputmode="email" placeholder="Email" autocomplete="email" maxlength="120">
+      <input id="birthdate-input" type="date" placeholder="Дата рождения (необязательно)" autocomplete="bday">
       <label class="consent-row">
         <input type="checkbox" id="phone-consent">
         <span>Согласен(на) на <a href="/privacy.html" id="phone-privacy-link" target="_blank" rel="noopener">обработку персональных данных</a></span>
