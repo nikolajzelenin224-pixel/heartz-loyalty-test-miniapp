@@ -15,25 +15,28 @@ if (tg) {
   }
 }
 
-// Мобильные WebView (в том числе внутри Telegram) не всегда честно уменьшают
-// layout-высоту документа, когда появляется экранная клавиатура — именно из-за этого
-// экран визуально "плывёт"/прыгает на полях ввода. CSS-юниты vh/dvh здесь ненадёжны:
-// внутри встроенных WebView они не всегда синхронизированы с реальной видимой
-// областью. window.visualViewport — единственный источник, который её действительно
-// знает, поэтому держим высоту #app привязанной именно к нему, пересчитывая на каждое
-// изменение (открытие/закрытие клавиатуры, поворот и т.д.).
+// По умолчанию высоту #app полностью отдаём CSS (height:100% зафиксированного
+// html/body — см. style.css) и никогда не трогаем её инлайном. Раньше JS выставлял
+// инлайн-высоту сразу при загрузке скрипта, ДО того как Telegram успевал доразвернуть
+// WebView (tg.expand() ещё не отработал) — из-за этого мог зафиксироваться слишком
+// маленький размер и весь интерфейс "садился" в угол с пустотами справа/снизу.
+// Теперь трогаем инлайн-высоту ТОЛЬКО когда видим, что window.visualViewport реально
+// меньше layout-высоты документа (то есть клавиатура и правда её ужала) — в остальное
+// время инлайн-стиль снят и работает обычный, надёжный CSS.
 const appEl = document.getElementById("app");
 function syncViewportHeight() {
   const vv = window.visualViewport;
-  const h = vv ? vv.height : window.innerHeight;
-  appEl.style.height = h + "px";
+  if (!vv) return;
+  const layoutHeight = document.documentElement.clientHeight;
+  if (vv.height < layoutHeight - 40) {
+    appEl.style.height = vv.height + "px";
+  } else {
+    appEl.style.height = "";
+  }
 }
-syncViewportHeight();
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", syncViewportHeight);
   window.visualViewport.addEventListener("scroll", syncViewportHeight);
-} else {
-  window.addEventListener("resize", syncViewportHeight);
 }
 
 // Когда клавиатура открывается, видимая область (и вместе с ней #app) становится

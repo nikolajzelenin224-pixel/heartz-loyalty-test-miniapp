@@ -27,23 +27,20 @@ body{
   color:var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-text-size-adjust:100%;
+  /* Центрируем #app обычным flex вместо position:absolute + left/right:0 + margin:auto —
+     та комбинация над max-width в некоторых мобильных WebView (похоже, как раз в вашем
+     случае) считается "переопределённой" и вместо центрирования прижимает блок в левый
+     верхний угол, оставляя пустоты справа/снизу. display:flex + justify-content:center
+     на родителе — куда более надёжный способ добиться того же результата. */
+  display:flex;
+  justify-content:center;
 }
 
 #app{
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  /* Высота по умолчанию — 100% зафиксированного html/body. На экранах без полей ввода
-     этого достаточно. Как только на странице появляется активное поле (фокус на
-     инпуте), app.js подставляет сюда точную высоту от window.visualViewport — это
-     единственный источник, который в мобильных WebView (включая Telegram) реально
-     знает актуальный видимый размер экрана при открытой клавиатуре. CSS-юниты вроде
-     vh/dvh для этого ненадёжны именно во встроенных WebView. */
-  height:100%;
+  position:relative;
   width:100%;
   max-width:480px;
-  margin:0 auto;
+  height:100%;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-y:contain;
