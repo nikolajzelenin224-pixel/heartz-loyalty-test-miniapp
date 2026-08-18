@@ -1,0 +1,7 @@
+{
+  "name": "heartz-loyalty",
+  "private": true,
+  "dependencies": {
+    "@vercel/blob": "^2.8.0"
+  }
+}

@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
-  const { initData, phone } = body || {};
+  const { initData, phone, name, email, birthDate, consent } = body || {};
 
   const check = verifyInitData(initData, process.env.BOT_TOKEN);
   if (!check.ok) {
@@ -105,6 +105,17 @@ module.exports = async (req, res) => {
   const tgId = check.user.id;
 
   try {
+    if (consent !== true) {
+      res.status(400).json({ error: "consent_required" });
+      return;
+    }
+    const cleanName = String(name || "").trim();
+    const cleanEmail = String(email || "").trim();
+    if (!cleanName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      res.status(400).json({ error: "bad_profile" });
+      return;
+    }
+
     const attempts = await kvIncrWithExpire(`ratelimit:register:${tgId}`, RATE_LIMIT_WINDOW);
     if (attempts > RATE_LIMIT_MAX) {
       res.status(429).json({ error: "too_many_attempts" });
@@ -117,12 +128,30 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Анкета хранится отдельно от code:/phone:/tg: (те остаются компактными и без ПДн,
+    // как и было решено раньше) — здесь только для этого профиля, ключ по tg_id.
+    await kvSet(`profile:${tgId}`, JSON.stringify({
+      name: cleanName,
+      email: cleanEmail,
+      birthDate: birthDate || null,
+      phone: normalized,
+      consentAt: new Date().toISOString(),
+    }));
+
     // 1. уже есть в нашей базе (исторический клиент или ранее зарегистрированный лид)
     const existingCode = await kvGet(`phone:${normalized}`);
     if (existingCode) {
       const raw = await kvGet(`code:${existingCode}`);
       if (raw) {
+        // Тот же лок владельца, что и в /api/lookup.js — один код лояльности не
+        // должен молча переприкрепляться к другому Telegram-аккаунту.
+        const owner = await kvGet(`codeowner:${existingCode}`);
+        if (owner && String(owner) !== String(tgId)) {
+          res.status(409).json({ error: "code_claimed_by_other" });
+          return;
+        }
         await kvSet(`tg:${tgId}`, `${raw}|${existingCode}`);
+        await kvSet(`codeowner:${existingCode}`, tgId); // см. комментарий ниже про блок 5
         const [level, ltv] = raw.split("|");
         res.status(200).json({ level, ltv: Number(ltv), code: existingCode, source: "existing" });
         return;
@@ -147,6 +176,9 @@ module.exports = async (req, res) => {
     await kvSet(`code:${code}`, raw);
     await kvSet(`phone:${normalized}`, code);
     await kvSet(`tg:${tgId}`, `${raw}|${code}`);
+    // Реверс-индекс для блока 5 (вебхук InSales, api/webhooks/insales-order.js) — при
+    // новом заказе вебхук обновит и tg:<id>, чтобы уровень в открытом миниаппе не устарел.
+    await kvSet(`codeowner:${code}`, tgId);
 
     res.status(200).json({ level, ltv, code, source: client ? "insales" : "lead" });
   } catch (e) {

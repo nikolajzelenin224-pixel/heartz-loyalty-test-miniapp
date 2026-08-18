@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
-  const { initData, code } = body || {};
+  const { initData, code, consent } = body || {};
 
   const check = verifyInitData(initData, process.env.BOT_TOKEN);
   if (!check.ok) {
@@ -26,6 +26,11 @@ module.exports = async (req, res) => {
   const tgId = check.user.id;
 
   try {
+    if (consent !== true) {
+      res.status(400).json({ error: "consent_required" });
+      return;
+    }
+
     const attempts = await kvIncrWithExpire(`ratelimit:lookup:${tgId}`, RATE_LIMIT_WINDOW);
     if (attempts > RATE_LIMIT_MAX) {
       res.status(429).json({ error: "too_many_attempts" });
@@ -44,7 +49,23 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Код лояльности привязывается к одному Telegram-аккаунту. Если его уже занял
+    // кто-то другой — не перезаписываем привязку молча (раньше так было можно, из-за
+    // этого чужой код можно было "увидеть" с любого аккаунта).
+    const owner = await kvGet(`codeowner:${normalized}`);
+    if (owner && String(owner) !== String(tgId)) {
+      res.status(409).json({ error: "code_claimed_by_other" });
+      return;
+    }
+
     await kvSet(`tg:${tgId}`, `${raw}|${normalized}`);
+    // Реверс-индекс для блока 5 (вебхук InSales) — чтобы при новом заказе можно было
+    // сразу обновить и tg:<id>, а не только code:<код>, и миниапп не показывал устаревший
+    // уровень до следующей ручной активации.
+    await kvSet(`codeowner:${normalized}`, tgId);
+    // Фиксируем факт и время согласия на обработку ПДн — нужно для 152-ФЗ (уметь
+    // подтвердить, что согласие было дано).
+    await kvSet(`consent:${tgId}`, new Date().toISOString());
 
     const [level, ltv] = raw.split("|");
     res.status(200).json({ level, ltv: Number(ltv), code: normalized });

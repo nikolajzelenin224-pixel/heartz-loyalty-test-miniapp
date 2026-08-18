@@ -11,7 +11,13 @@ const screens = {
   code: document.getElementById("screen-code"),
   level: document.getElementById("screen-level"),
   fatal: document.getElementById("screen-fatal"),
+  boxReveal: document.getElementById("screen-box-reveal"),
 };
+
+// Код лояльности — строго HEARTZ-XXXXXXXX по нашему алфавиту. Всё остальное, что ввели
+// в это же поле, пробуем как код коробки Mystery Box (свой формат задаёт сторонняя
+// программа, поэтому здесь намеренно нет жёсткой проверки формата).
+const LOYALTY_CODE_RE = /^HEARTZ-?[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/;
 
 function show(name) {
   Object.values(screens).forEach(s => s.classList.add("hidden"));
@@ -86,14 +92,31 @@ function showFatal(text) {
 function showCodeScreen() {
   document.getElementById("code-block").classList.remove("hidden");
   document.getElementById("phone-block").classList.add("hidden");
+  document.getElementById("code-support-btn").classList.add("hidden");
   show("code");
 }
 
 function showPhoneScreen() {
   document.getElementById("code-block").classList.add("hidden");
   document.getElementById("phone-block").classList.remove("hidden");
+  document.getElementById("phone-support-btn").classList.add("hidden");
   show("code");
 }
+
+// Поддержка мини-приложения — @HeartzSupportBot. Показываем кнопку только там, где
+// человеку реально может понадобиться живая помощь (код/бокс уже занят кем-то другим),
+// а не на каждой ошибке — иначе она перестаёт быть сигналом "тут стоит написать".
+function openSupport() {
+  const url = "https://t.me/HeartzSupportBot";
+  if (tg && tg.openTelegramLink) {
+    tg.openTelegramLink(url);
+  } else {
+    window.open(url, "_blank");
+  }
+}
+document.getElementById("code-support-btn").addEventListener("click", openSupport);
+document.getElementById("phone-support-btn").addEventListener("click", openSupport);
+document.getElementById("box-support-btn").addEventListener("click", openSupport);
 
 async function loadMe() {
   show("loading");
@@ -115,8 +138,15 @@ async function loadMe() {
 }
 
 async function submitCode(code) {
+  const consent = document.getElementById("code-consent").checked;
+  if (!consent) {
+    const err = document.getElementById("code-error");
+    err.textContent = "Отметьте согласие на обработку персональных данных, чтобы продолжить.";
+    err.classList.remove("hidden");
+    return;
+  }
   show("loading");
-  const { ok, status, data } = await postJSON("/api/lookup", { initData: tg.initData, code });
+  const { ok, status, data } = await postJSON("/api/lookup", { initData: tg.initData, code, consent });
 
   if (ok) {
     renderLevel(data);
@@ -125,8 +155,20 @@ async function submitCode(code) {
   if (status === 404 || status === 400) {
     showCodeScreen();
     const err = document.getElementById("code-error");
-    err.textContent = "Код не найден. Проверьте написание.";
+    err.textContent = data?.error === "consent_required"
+      ? "Отметьте согласие на обработку персональных данных."
+      : "Код не найден. Проверьте написание — или войдите по номеру телефона, которым оформляли заказ.";
     err.classList.remove("hidden");
+    return;
+  }
+  if (status === 409) {
+    // Код уже привязан к другому Telegram-аккаунту — это не "неверный код", отдельная
+    // ситуация, и человеку нужно подсказать реальный выход, а не просто "попробуйте ещё раз".
+    showCodeScreen();
+    const err = document.getElementById("code-error");
+    err.textContent = "Этот код уже используется в другом Telegram-аккаунте. Попробуйте войти по номеру телефона — или напишите в поддержку, если уверены, что код ваш.";
+    err.classList.remove("hidden");
+    document.getElementById("code-support-btn").classList.remove("hidden");
     return;
   }
   if (status === 429) {
@@ -144,8 +186,30 @@ async function submitCode(code) {
 }
 
 async function submitPhone(phone) {
+  const name = document.getElementById("name-input").value.trim();
+  const email = document.getElementById("email-input").value.trim();
+  const birthDate = document.getElementById("birthdate-input").value || null;
+  const consent = document.getElementById("phone-consent").checked;
+
+  if (!name || !email) {
+    showPhoneScreen();
+    const err = document.getElementById("phone-error");
+    err.textContent = "Заполните имя и email.";
+    err.classList.remove("hidden");
+    return;
+  }
+  if (!consent) {
+    showPhoneScreen();
+    const err = document.getElementById("phone-error");
+    err.textContent = "Отметьте согласие на обработку персональных данных, чтобы продолжить.";
+    err.classList.remove("hidden");
+    return;
+  }
+
   show("loading");
-  const { ok, status, data } = await postJSON("/api/register-phone", { initData: tg.initData, phone });
+  const { ok, status, data } = await postJSON("/api/register-phone", {
+    initData: tg.initData, phone, name, email, birthDate, consent,
+  });
 
   if (ok) {
     renderLevel(data);
@@ -154,8 +218,21 @@ async function submitPhone(phone) {
   if (status === 400) {
     showPhoneScreen();
     const err = document.getElementById("phone-error");
-    err.textContent = "Проверьте номер телефона.";
+    const messages = {
+      consent_required: "Отметьте согласие на обработку персональных данных.",
+      bad_profile: "Проверьте имя и email.",
+      bad_phone_format: "Проверьте номер телефона.",
+    };
+    err.textContent = messages[data?.error] || "Проверьте введённые данные.";
     err.classList.remove("hidden");
+    return;
+  }
+  if (status === 409) {
+    showPhoneScreen();
+    const err = document.getElementById("phone-error");
+    err.textContent = "Код, привязанный к этому номеру, уже используется в другом Telegram-аккаунте. Если это ваш номер — напишите в поддержку, разберёмся.";
+    err.classList.remove("hidden");
+    document.getElementById("phone-support-btn").classList.remove("hidden");
     return;
   }
   if (status === 429) {
@@ -172,11 +249,75 @@ async function submitPhone(phone) {
   showFatal("Не удалось связаться с сервером. Попробуйте ещё раз.");
 }
 
+async function submitBoxCode(code) {
+  show("loading");
+  const { ok, status, data } = await postJSON("/api/mystery-box/redeem", { initData: tg.initData, code, consent: true });
+
+  if (ok) {
+    document.getElementById("box-reveal-image").src = data.imageUrl;
+    show("boxReveal");
+    return;
+  }
+  if (status === 404) {
+    showCodeScreen();
+    const err = document.getElementById("code-error");
+    err.textContent = "Код не найден — ни как код лояльности, ни как код бокса. Проверьте написание.";
+    err.classList.remove("hidden");
+    return;
+  }
+  if (status === 409) {
+    showCodeScreen();
+    const err = document.getElementById("code-error");
+    err.textContent = "Этот бокс уже был активирован — с другого аккаунта. Если это ошибка, напишите в поддержку.";
+    err.classList.remove("hidden");
+    document.getElementById("code-support-btn").classList.remove("hidden");
+    return;
+  }
+  if (status === 429) {
+    showCodeScreen();
+    const err = document.getElementById("code-error");
+    err.textContent = "Слишком много попыток. Попробуйте позже.";
+    err.classList.remove("hidden");
+    return;
+  }
+  if (status === 401) {
+    showFatal("Не удалось подтвердить аккаунт Telegram. Попробуйте закрыть и снова открыть приложение из бота.");
+    return;
+  }
+  showFatal("Не удалось связаться с сервером. Попробуйте ещё раз.");
+}
+
 document.getElementById("code-submit").addEventListener("click", () => {
   const code = normalizeCode(document.getElementById("code-input").value);
   if (!code) return;
-  submitCode(code);
+  if (!document.getElementById("code-consent").checked) {
+    const err = document.getElementById("code-error");
+    err.textContent = "Отметьте согласие на обработку персональных данных, чтобы продолжить.";
+    err.classList.remove("hidden");
+    return;
+  }
+  if (LOYALTY_CODE_RE.test(code)) {
+    submitCode(code);
+  } else {
+    submitBoxCode(code);
+  }
 });
+
+function showTgMessage(text) {
+  if (tg && typeof tg.showAlert === "function") tg.showAlert(text);
+  else alert(text);
+}
+
+document.getElementById("box-share-btn").addEventListener("click", () => {
+  const url = document.getElementById("box-reveal-image").src;
+  if (tg && typeof tg.shareToStory === "function") {
+    tg.shareToStory(url, { text: "HEARTZ Special Supply" });
+  } else {
+    showTgMessage("Это же фото уже отправлено вам ботом в чат — им можно поделиться оттуда: переслать другу или добавить в историю.");
+  }
+});
+
+document.getElementById("box-back-btn").addEventListener("click", loadMe);
 
 document.getElementById("code-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("code-submit").click();
@@ -195,6 +336,20 @@ document.getElementById("phone-input").addEventListener("keydown", (e) => {
 document.getElementById("show-phone-btn").addEventListener("click", showPhoneScreen);
 document.getElementById("show-code-btn").addEventListener("click", showCodeScreen);
 
+// Обычная ссылка с target="_blank" не всегда корректно открывается во WebView Telegram —
+// используем tg.openLink, если доступен.
+function openPrivacyLink(e) {
+  e.preventDefault();
+  const url = new URL("/privacy.html", window.location.href).toString();
+  if (tg && tg.openLink) {
+    tg.openLink(url);
+  } else {
+    window.open(url, "_blank");
+  }
+}
+document.getElementById("code-privacy-link").addEventListener("click", openPrivacyLink);
+document.getElementById("phone-privacy-link").addEventListener("click", openPrivacyLink);
+
 document.getElementById("reset-btn").addEventListener("click", () => {
   document.getElementById("code-input").value = "";
   document.getElementById("code-error").classList.add("hidden");
@@ -205,17 +360,39 @@ document.getElementById("fatal-retry").addEventListener("click", init);
 
 // Код клиента — он же код скидки на сайте. Скидка на кассе считается по
 // текущему уровню автоматически (см. api/external-discount.js), отдельного
-// одноразового промокода не выдаём.
-document.getElementById("promo-btn").addEventListener("click", () => {
+// одноразового промокода не выдаём. По нажатию код показывается крупно и сразу
+// копируется в буфер обмена, чтобы его не приходилось перепечатывать руками на сайте.
+async function copyPromoCode() {
   const box = document.getElementById("promo-result");
+  const codeEl = document.getElementById("promo-code");
+  const copiedEl = document.getElementById("promo-copied");
+  const hintEl = document.getElementById("promo-hint");
+
   if (!currentCode) {
-    box.textContent = "Код недоступен. Нажмите «Ввести другой код» и войдите заново.";
+    codeEl.textContent = "";
+    copiedEl.classList.add("hidden");
+    hintEl.textContent = "Код недоступен. Нажмите «Ввести другой код» и войдите заново.";
     box.classList.remove("hidden");
     return;
   }
-  box.textContent = `HEARTZ-${currentCode} — введите этот код в поле «Промокод» при оформлении заказа на сайте. Скидка зависит от вашего уровня.`;
+
+  const fullCode = `HEARTZ-${currentCode}`;
+  codeEl.textContent = fullCode;
+  hintEl.textContent = "Введите этот код на странице «Корзина» на сайте — скидка применится по вашему уровню.";
+  copiedEl.classList.add("hidden");
   box.classList.remove("hidden");
-});
+
+  try {
+    await navigator.clipboard.writeText(fullCode);
+    copiedEl.classList.remove("hidden");
+  } catch {
+    // Буфер обмена недоступен (редкий случай в некоторых WebView) — код всё равно
+    // показан крупно и его можно выделить/скопировать вручную (user-select: all в CSS).
+  }
+}
+
+document.getElementById("promo-btn").addEventListener("click", copyPromoCode);
+document.getElementById("promo-code")?.addEventListener("click", copyPromoCode);
 
 // Если приложение открыто по диплинку t.me/heartzinfobot/app?startapp=HEARTZ-XXXXXXXX,
 // подставляем код автоматически, без ручного набора.
