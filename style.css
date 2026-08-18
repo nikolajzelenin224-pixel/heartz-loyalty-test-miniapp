@@ -56,6 +56,24 @@ body{
 }
 .hidden{display:none !important;}
 
+/* Найден настоящий источник "кривого" экрана кода/регистрации: #code-block и
+   #phone-block — обычные блочные div'ы внутри флекс-контейнера .screen. Флекс
+   центрирует САМИ эти div'ы, но т.к. их ширина авто-растягивается на всю
+   доступную (из-за длинного текста подсказки, которому некуда вписаться иначе),
+   элементы ВНУТРИ них (инпуты, кнопка, чекбокс) — обычные блочные дети без
+   margin:auto — прижимаются к левому краю этого растянутого div'а, оставляя
+   пустоту справа. На экране уровня такой проблемы нет, потому что там
+   .level-card/.tabs/.stats-row/.btn-primary — прямые дети флекс-контейнера
+   (.screen/.tab-panel) и центрируются им напрямую. Чиним тем же способом:
+   делаем #code-block/#phone-block тоже флекс-контейнерами с центрированием
+   собственных детей — так же, как устроен экран уровня. */
+#code-block, #phone-block{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  width:100%;
+}
+
 .back-arrow{
   position:fixed;
   top:14px;
@@ -96,12 +114,12 @@ h1{
   text-align:center;
   line-height:1.5;
   margin:0 0 24px;
-  max-width:320px;
+  max-width:340px;
 }
 
 #code-input, #phone-input, #name-input, #email-input, #birthdate-input, #box-tab-input{
   width:100%;
-  max-width:320px;
+  max-width:340px;
   height:52px;
   background:var(--card);
   border:1px solid var(--border);
@@ -129,7 +147,7 @@ h1{
   align-items:flex-start;
   gap:8px;
   width:100%;
-  max-width:320px;
+  max-width:340px;
   margin:2px 0 16px;
   text-align:left;
   color:var(--hint);
@@ -142,7 +160,7 @@ h1{
 
 .btn-primary{
   width:100%;
-  max-width:320px;
+  max-width:340px;
   background:var(--accent);
   color:#fff;
   border:none;
@@ -177,7 +195,7 @@ h1{
 
 .conflict-box{
   width:100%;
-  max-width:320px;
+  max-width:340px;
   background:var(--card);
   border:1px solid var(--border);
   border-radius:4px;
@@ -275,7 +293,7 @@ h1{
 
 .promo-result{
   width:100%;
-  max-width:320px;
+  max-width:340px;
   background:var(--card);
   border:1px dashed var(--accent);
   border-radius:4px;
