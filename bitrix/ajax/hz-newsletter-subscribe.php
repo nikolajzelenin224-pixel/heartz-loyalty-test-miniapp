@@ -44,8 +44,31 @@ $HZ_UNISENDER_URL = 'https://api.unisender.com/ru/api/subscribe?format=json';
 
 // =====================================================
 
+// true, если форму отправил сам браузер (обычный POST без JS), а не скрипт виджета.
+// Тогда вместо JSON возвращаем посетителя на страницу сайта с сообщением
+// (#hz-newsletter-confirm / #hz-newsletter-error показываются через CSS :target).
+$HZ_FORM_POST = false;
+
 function hz_respond($code, array $data)
 {
+    global $HZ_FORM_POST, $HZ_ALLOWED_ORIGINS;
+    if ($HZ_FORM_POST) {
+        $back = isset($_SERVER['HTTP_REFERER']) ? (string)$_SERVER['HTTP_REFERER'] : '';
+        $backOk = false;
+        foreach ($HZ_ALLOWED_ORIGINS as $allowed) {
+            if (strpos($back, $allowed . '/') === 0 || $back === $allowed) {
+                $backOk = true;
+                break;
+            }
+        }
+        if (!$backOk) {
+            $back = $HZ_ALLOWED_ORIGINS[0] . '/';
+        }
+        $back = preg_replace('/#.*$/', '', $back);
+        $anchor = !empty($data['ok']) ? 'hz-newsletter-confirm' : 'hz-newsletter-error';
+        header('Location: ' . $back . '#' . $anchor, true, 303);
+        exit;
+    }
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
@@ -87,6 +110,7 @@ if ($raw !== false && $raw !== '') {
 }
 if (!$body && !empty($_POST)) {
     $body = $_POST;
+    $HZ_FORM_POST = true;
 }
 
 // Honeypot: невидимое поле, человек его не заполняет. Боту отвечаем "успехом".
