@@ -1,0 +1,432 @@
+@include background-color(--bg);
+
+p {
+  margin: 0;
+  padding: 0;
+}
+
+.delimeter {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  height: var(--height-size);
+}
+
+footer {
+  background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px !important;
+
+  .footer-up {
+    display: grid;
+    gap: 44px;
+    padding: 45px 55px 33px 37px;
+
+    /* Компоновка на desktop */
+    @media (min-width: 1024px) {
+      grid-template-columns: auto repeat(4, 100px) auto;
+      grid-template-areas:
+        "left social about shops payment right";
+      align-items: center;
+    }
+
+    /* Компоновка на mobile */
+    @media (max-width: 1023px) {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "left right"
+        "social about"
+        "shops payment";
+      padding: 20px 21px 19px;
+      row-gap: 5px;
+      column-gap: 51px;
+    }
+
+    /* Левая колонка */
+    .footer-container:nth-child(1) { 
+      grid-area: left;
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+
+      @media screen and (max-width: 768px) {
+        margin-bottom: 15px;
+      }
+    }
+
+    /* Соцсети */
+    .footer-container:nth-child(2) { 
+      grid-area: social;
+      width: 100px;
+
+      @media screen and (max-width: 768px) {
+        margin-bottom: 15px;
+      }
+      @media screen and (max-width: 1023px) {
+        text-align: center;
+        width: auto;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Социальные иконки */
+      .socials {
+        display: flex;
+        align-items: center;
+
+        .social-icon {
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+
+          &:nth-child(1) {
+            margin-right: 13px;
+          }
+
+          img {
+            height: 44px;
+            width: 44px;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+          }
+
+          &:hover img {
+            opacity: 0.6;              /* легкое затухание */
+            transform: translateY(-3px); /* плавный подъем */
+          }
+        }
+
+        @media screen and (max-width: 768px) {
+          img {
+            height: 44px;
+            width: 44px;
+          }
+        }
+
+        @media screen and (max-width: 358px) {
+          img {
+            height: 33px;
+            width: 33px;
+          }
+        }
+      }
+    }
+
+    /* О бренде / поддержка */
+    .footer-container:nth-child(3) { 
+      grid-area: about; 
+      width: 100px;
+      @media screen and (max-width: 1023px) {
+        text-align: center;
+        width: auto;
+      }
+    }
+
+    /* Магазины */
+    .footer-container:nth-child(4) { 
+      grid-area: shops;
+      @media screen and (max-width: 1023px) {
+        text-align: center;
+      }
+    }
+
+    /* Оплата / доставка */
+    .footer-container:nth-child(5) { 
+      grid-area: payment;
+      @media screen and (max-width: 1023px) {
+        text-align: center;
+      }
+    }
+
+    /* Правая колонка (логотип Vision) */
+    .footer-container:nth-child(6) { 
+      grid-area: right;
+      text-align: right;
+    }
+
+    .footer-container {
+      &__menu {
+        display: flex;
+        flex-direction: column;
+
+        a {
+          font-family: "Helvetica";
+          font-weight: 400;
+          font-style: Light;
+          font-size: 14px;
+          line-height: 150%;
+          letter-spacing: 3px;
+          text-decoration: none;
+
+          @media screen and (max-width: 768px) {
+            line-height: 200%;
+          }
+        }
+      }
+    }
+  }
+}
+
+.footer-container {
+  .right-img {
+    width: 174px;
+
+    @media screen and (max-width: 350px) {
+      width: 120px;
+    }
+  }
+
+  .mobile {
+    display: none;
+  }
+  .desktop {
+    display: block;
+  }
+
+  @media screen and (max-width: 768px) {
+    .mobile {
+      display: block;
+    }
+    .desktop {
+      display: none;
+    }
+  }
+}
+.footer-left-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; // немного меньше — чтобы интервал стал как в макете
+
+  .footer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; // равномерный отступ между ссылками и годом
+    margin-top: 0; // убираем лишний отступ сверху
+
+    .footer-link {
+      font-family: "Helvetica";
+      font-weight: 300;
+      font-style: Light;
+      font-size: 12px;
+      line-height: 120%;
+      letter-spacing: 2px;
+      color: #232429;
+      text-decoration: none;
+      text-transform: uppercase;
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+
+  @media screen and (max-width: 768px) {
+    align-items: flex-start;
+
+    .footer-links {
+      gap: 4px;
+
+      .footer-link {
+        font-size: 10px;
+        letter-spacing: 1px;
+      }
+    }
+  }
+}
+
+/* ===== Подписка на рассылку (как у Prada) ===== */
+footer .hz-newsletter {
+  padding: 45px 55px 0 37px;
+
+  @media (max-width: 1023px) {
+    padding: 24px 21px 6px;
+  }
+
+  .hz-newsletter__form {
+    width: 100%;
+    max-width: 470px;
+    margin: 0;
+  }
+
+  .hz-newsletter__label {
+    display: block;
+    margin: 0 0 10px;
+    font-family: "Helvetica";
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 120%;
+    letter-spacing: 2px;
+    color: #232429;
+    text-transform: uppercase;
+
+    @media (max-width: 768px) {
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+  }
+
+  .hz-newsletter__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #232429;
+    transition: border-color 0.25s ease;
+  }
+
+  .hz-newsletter__input {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    padding: 0 12px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    font-family: "Helvetica";
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 44px;
+    letter-spacing: 2px;
+    color: #232429;
+
+    &::placeholder {
+      color: #232429;
+      opacity: 1;
+      letter-spacing: 3px;
+    }
+
+    &:focus::placeholder {
+      opacity: 0.4;
+    }
+
+    /* убираем жёлтый фон автозаполнения Chrome */
+    &:-webkit-autofill,
+    &:-webkit-autofill:hover,
+    &:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset;
+      -webkit-text-fill-color: #232429;
+    }
+
+    /* 16px на телефоне - иначе iOS увеличивает страницу при фокусе */
+    @media (max-width: 768px) {
+      font-size: 16px;
+      letter-spacing: 1px;
+
+      &::placeholder {
+        letter-spacing: 2px;
+      }
+    }
+  }
+
+  /* honeypot для ботов - скрыт от людей */
+  .hz-newsletter__hp {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .hz-newsletter__submit {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 0 -11px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #232429;
+    cursor: pointer;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+
+    svg {
+      display: block;
+    }
+
+    &:hover {
+      opacity: 0.6;
+      transform: translateX(3px);
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.3;
+      transform: none;
+    }
+  }
+
+  .hz-newsletter__form.is-loading .hz-newsletter__submit svg {
+    animation: hz-newsletter-pulse 0.9s ease-in-out infinite;
+  }
+
+  .hz-newsletter__form.has-error .hz-newsletter__field {
+    border-bottom-color: #E0282E;
+  }
+
+  .hz-newsletter__status {
+    min-height: 0;
+    margin: 8px 0 0;
+    font-family: "Helvetica";
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 140%;
+    letter-spacing: 2px;
+    color: #232429;
+
+    &:empty {
+      display: none;
+    }
+
+    &.is-error {
+      color: #E0282E;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+  }
+
+  .hz-newsletter__note {
+    margin: 8px 0 0;
+    font-family: "Helvetica";
+    font-weight: 300;
+    font-size: 10px;
+    line-height: 140%;
+    letter-spacing: 0.5px;
+    color: #232429;
+    opacity: 0.6;
+
+    a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+@keyframes hz-newsletter-pulse {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}

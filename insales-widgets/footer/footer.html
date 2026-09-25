@@ -1,0 +1,188 @@
+<footer>
+  <div class="hz-newsletter">
+    <form class="hz-newsletter__form" action="#" novalidate>
+      <label class="hz-newsletter__label" for="hz-newsletter-email">ПОДПИСКА НА НОВОСТИ HEARTZ</label>
+      <div class="hz-newsletter__field">
+        <input
+          id="hz-newsletter-email"
+          class="hz-newsletter__input"
+          type="email"
+          name="email"
+          placeholder="E-MAIL *"
+          autocomplete="email"
+          inputmode="email"
+          maxlength="254"
+          required
+        >
+        <input type="text" name="website" class="hz-newsletter__hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button type="submit" class="hz-newsletter__submit" aria-label="Подписаться на рассылку">
+          <svg width="22" height="16" viewBox="0 0 22 16" fill="none" aria-hidden="true">
+            <path d="M0 8H20M13 1L20 8L13 15" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+        </button>
+      </div>
+      <p class="hz-newsletter__status" role="status" aria-live="polite"></p>
+      <p class="hz-newsletter__note">
+        Нажимая на стрелку, вы соглашаетесь получать рассылку HEARTZ и&nbsp;с&nbsp;<a href="https://heartz.online/page/agreement">политикой конфиденциальности</a>
+      </p>
+    </form>
+  </div>
+
+  <div class="footer-up">
+    <div class="footer-container">
+      <div class="footer-left-content">
+        <p class="desktop">2026—∞ © HEARTZ</p>
+        <p class="mobile">2026 © HEARTZ</p>
+
+        <div class="footer-links">
+          <a href="https://heartz.online/page/public_offer" class="footer-link">ПУБЛИЧНАЯ ОФЕРТА</a>
+          <a href="https://heartz.online/page/agreement" class="footer-link">ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</a>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="footer-container">
+      <div class="socials">
+        <a href="https://www.instagram.com/heartz.immo" class="social-icon" target="_blank" rel="noopener noreferrer" aria-label="Instagram HEARTZ">
+          <img src="https://static.insales-cdn.com/files/1/1505/95954401/original/footer-inst-icon.svg" alt="Instagram HEARTZ">
+        </a>
+        <a href="https://heartz.immo/botcatalogue" class="social-icon" target="_blank" rel="noopener noreferrer" aria-label="Telegram HEARTZ">
+          <img src="https://static.insales-cdn.com/files/1/1513/95954409/original/footer-tg-icon.svg" alt="Telegram HEARTZ">
+        </a>
+      </div>
+    </div>
+
+    <div class="footer-container">
+      <div class="footer-container__menu">
+        <a href="https://heartz.immo/ru/about/" class="menu-item">О БРЕНДЕ</a>
+        <a href="http://t.me/HeartzSupportBot" class="menu-item">ПОДДЕРЖКА</a>
+      </div>
+    </div>
+
+    <div class="footer-container">
+      <div class="footer-container__menu">
+        <a href="https://heartz.immo/ru/buy/" class="menu-item">МАГАЗИНЫ</a>
+        <a href="/page/about-us#vozvratObmen" class="menu-item">ВОЗВРАТ</a>
+      </div>
+    </div>
+
+    <div class="footer-container">
+      <div class="footer-container__menu">
+        <a href="/page/about-us#oplata" class="menu-item">ОПЛАТА</a>
+        <a href="/page/about-us#dostavka" class="menu-item">ДОСТАВКА</a>
+      </div>
+    </div>
+
+
+    <div class="footer-container">
+      <a href="https://www.heartz.vision" target="_blank" rel="noopener noreferrer" aria-label="Heartz Vision">
+        <img
+          src="https://static.insales-cdn.com/files/1/4449/103682401/original/vision.svg"
+          alt="Heartz Vision"
+          class="right-img"
+        >
+      </a>
+    </div>
+  </div>
+
+  <img src="https://static.insales-cdn.com/files/1/1521/95954417/original/footer-img.svg" alt="" class="footer-down">
+</footer>
+
+<script>
+(function () {
+  var ENDPOINT = 'https://heartz.immo/local/ajax/hz-newsletter-subscribe.php';
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  var MESSAGES = {
+    empty: 'ВВЕДИТЕ E-MAIL',
+    invalid: 'ПРОВЕРЬТЕ ПРАВИЛЬНОСТЬ E-MAIL',
+    subscribed: 'СПАСИБО! ВЫ ПОДПИСАНЫ НА НОВОСТИ HEARTZ',
+    already: 'ЭТОТ E-MAIL УЖЕ ПОДПИСАН',
+    limit: 'СЛИШКОМ МНОГО ПОПЫТОК, ПОПРОБУЙТЕ ПОЗЖЕ',
+    error: 'НЕ ПОЛУЧИЛОСЬ ПОДПИСАТЬСЯ, ПОПРОБУЙТЕ ЕЩЁ РАЗ'
+  };
+
+  function init(form) {
+    if (form.getAttribute('data-hz-ready')) return;
+    form.setAttribute('data-hz-ready', '1');
+
+    var input = form.querySelector('.hz-newsletter__input');
+    var honeypot = form.querySelector('.hz-newsletter__hp');
+    var button = form.querySelector('.hz-newsletter__submit');
+    var status = form.querySelector('.hz-newsletter__status');
+    var busy = false;
+
+    function show(text, type) {
+      status.textContent = text;
+      status.className = 'hz-newsletter__status' + (type ? ' is-' + type : '');
+      form.classList.toggle('has-error', type === 'error');
+    }
+
+    input.addEventListener('input', function () {
+      if (form.classList.contains('has-error')) show('', '');
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (busy) return;
+
+      var email = String(input.value || '').trim();
+      if (!email) { show(MESSAGES.empty, 'error'); input.focus(); return; }
+      if (email.length > 254 || !EMAIL_RE.test(email)) { show(MESSAGES.invalid, 'error'); input.focus(); return; }
+
+      busy = true;
+      button.disabled = true;
+      form.classList.add('is-loading');
+      show('', '');
+
+      var controller = window.AbortController ? new AbortController() : null;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+
+      fetch(ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({ email: email, website: honeypot ? honeypot.value : '', page: location.href }),
+        signal: controller ? controller.signal : undefined
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            return { status: res.status, data: data };
+          });
+        })
+        .then(function (r) {
+          if (r.status === 200 && r.data && r.data.ok) {
+            input.value = '';
+            input.blur();
+            show(r.data.status === 'already' ? MESSAGES.already : MESSAGES.subscribed, 'success');
+          } else if (r.status === 400) {
+            show(MESSAGES.invalid, 'error');
+          } else if (r.status === 429) {
+            show(MESSAGES.limit, 'error');
+          } else {
+            show(MESSAGES.error, 'error');
+          }
+        })
+        .catch(function () {
+          show(MESSAGES.error, 'error');
+        })
+        .then(function () {
+          if (timer) clearTimeout(timer);
+          busy = false;
+          button.disabled = false;
+          form.classList.remove('is-loading');
+        });
+    });
+  }
+
+  function initAll() {
+    var forms = document.querySelectorAll('.hz-newsletter__form');
+    for (var i = 0; i < forms.length; i++) init(forms[i]);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
