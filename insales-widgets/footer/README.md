@@ -1,16 +1,20 @@
 # Подвал heartz.online с подпиской на рассылку
 
-Форма e-mail в подвале, как на prada.com. E-mail уходит на обработчик на heartz.immo (1С-Битрикс) и сохраняется в модуль рассылок Битрикса.
+Форма e-mail в подвале, как на prada.com. Браузер отправляет e-mail на обработчик на heartz.immo, а тот добавляет его в Unisender (список 72 «Подписка на рассылку. С сайта.») с письмом «подтвердите подписку» (double opt-in).
 
-## 1. Битрикс (heartz.immo)
+## 1. Unisender
 
-1. Загрузить `bitrix/local/ajax/hz-newsletter-subscribe.php` на сервер в `/local/ajax/hz-newsletter-subscribe.php`.
-2. Временно вписать любой ключ в `$HZ_DIAG_KEY` и открыть
-   `https://heartz.immo/local/ajax/hz-newsletter-subscribe.php?diag=<ключ>`. Там будет видно, какой модуль установлен (`sender` - "Email-маркетинг" или `subscribe` - "Подписка, рассылки") и ID рассылок/рубрик.
-3. Вписать нужный ID в `$HZ_SENDER_MAILING_IDS` или `$HZ_SUBSCRIBE_RUBRIC_IDS`. После этого снова очистить `$HZ_DIAG_KEY`.
-4. Проверка: при открытии URL в браузере без `?diag` должно показаться `{"error":"method_not_allowed"}`.
+У списка 72 должно быть настроено письмо-подтверждение подписки (в настройках списка, с подтверждённым адресом отправителя). Без него подтверждение не уйдёт.
 
-## 2. InSales (heartz.online)
+## 2. Сервер heartz.immo
+
+1. Загрузить `bitrix/local/ajax/hz-newsletter-subscribe.php` в `/local/ajax/hz-newsletter-subscribe.php`.
+2. На сервере вписать API-ключ Unisender в `$HZ_UNISENDER_API_KEY` (в репозиторий ключ не коммитить).
+3. Проверка: открыть `https://heartz.immo/local/ajax/hz-newsletter-subscribe.php` в браузере, должно показаться `{"error":"method_not_allowed"}`.
+
+## 3. InSales
 
 Виджет подвала: HTML заменить на `footer.html`, SCSS на `footer.scss`. Скрипт формы уже внутри HTML.
-Проверить в режиме предпросмотра темы и только потом публиковать.
+Проверить в предпросмотре темы на своём e-mail (должно прийти письмо-подтверждение, после клика контакт активен в списке 72) и только потом публиковать.
+
+Этот же обработчик принимает `source: 'restock'` и кладёт e-mail в список 71 «Уведомить о наличии. С сайта.» - для попапа «Уведомить».

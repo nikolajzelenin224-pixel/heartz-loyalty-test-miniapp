@@ -96,6 +96,7 @@
   var MESSAGES = {
     empty: 'ВВЕДИТЕ E-MAIL',
     invalid: 'ПРОВЕРЬТЕ ПРАВИЛЬНОСТЬ E-MAIL',
+    confirm: 'ПОЧТИ ГОТОВО! ПОДТВЕРДИТЕ ПОДПИСКУ В ПИСЬМЕ НА ПОЧТЕ',
     subscribed: 'СПАСИБО! ВЫ ПОДПИСАНЫ НА НОВОСТИ HEARTZ',
     already: 'ЭТОТ E-MAIL УЖЕ ПОДПИСАН',
     limit: 'СЛИШКОМ МНОГО ПОПЫТОК, ПОПРОБУЙТЕ ПОЗЖЕ',
@@ -141,7 +142,7 @@
       fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-        body: JSON.stringify({ email: email, website: honeypot ? honeypot.value : '', page: location.href }),
+        body: JSON.stringify({ email: email, source: 'footer', website: honeypot ? honeypot.value : '', page: location.href }),
         signal: controller ? controller.signal : undefined
       })
         .then(function (res) {
@@ -153,7 +154,7 @@
           if (r.status === 200 && r.data && r.data.ok) {
             input.value = '';
             input.blur();
-            show(r.data.status === 'already' ? MESSAGES.already : MESSAGES.subscribed, 'success');
+            show(MESSAGES[r.data.status] || MESSAGES.confirm, 'success');
           } else if (r.status === 400) {
             show(MESSAGES.invalid, 'error');
           } else if (r.status === 429) {
