@@ -30,9 +30,29 @@
       setTimeout(function () { emailInput.focus(); }, 50);
     });
 
-    notifyForm.addEventListener("submit", function () {
+    // На сайте есть сторонний скрипт, который перехватывает отправку этой формы
+    // (показывает «Вы подписаны на уведомление», а в Unisender ничего не уходит).
+    // Ловим клик и отправку раньше него - в фазе захвата на window - и сами
+    // отправляем форму обычным POST в iframe.
+    function sendToUnisender() {
       if (frame) frame.style.visibility = "visible";
-    });
+      HTMLFormElement.prototype.submit.call(notifyForm);
+    }
+
+    window.addEventListener("click", function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest(".button-subscribe") : null;
+      if (!btn || !notifyForm.contains(btn)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sendToUnisender();
+    }, true);
+
+    window.addEventListener("submit", function (e) {
+      if (e.target !== notifyForm) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sendToUnisender();
+    }, true);
 
     btnClose.addEventListener("click", closePopup);
 
