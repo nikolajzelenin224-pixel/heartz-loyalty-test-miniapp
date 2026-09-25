@@ -2,8 +2,8 @@
 /**
  * HEARTZ - подписка на рассылку с сайта heartz.online (InSales) в Unisender.
  *
- * Куда положить: /local/ajax/hz-newsletter-subscribe.php на сервере heartz.immo
- * URL:           https://heartz.immo/local/ajax/hz-newsletter-subscribe.php
+ * Куда положить: /ajax/hz-newsletter-subscribe.php на сервере heartz.immo
+ * URL:           https://heartz.immo/ajax/hz-newsletter-subscribe.php
  *
  * Зачем прокладка, а не запрос из браузера прямо в Unisender: API-ключ Unisender
  * даёт полный доступ к аккаунту, его нельзя показывать в коде сайта. Ключ живёт

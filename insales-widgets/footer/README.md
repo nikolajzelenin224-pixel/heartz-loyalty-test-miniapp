@@ -4,13 +4,13 @@
 
 ## 1. Unisender
 
-У списка 72 должно быть настроено письмо-подтверждение подписки (в настройках списка, с подтверждённым адресом отправителя). Без него подтверждение не уйдёт.
+Письмо «подтвердите подписку» отправляет сам Unisender (double_optin=0). Если в аккаунте не настроено письмо подтверждения или адрес отправителя, Unisender вернёт ошибку: форма покажет «не получилось подписаться», а текст ошибки Unisender будет в error-логе PHP на сервере heartz.immo (строка `HZ_NEWSLETTER: unisender failed`).
 
 ## 2. Сервер heartz.immo
 
-1. Загрузить `bitrix/local/ajax/hz-newsletter-subscribe.php` в `/local/ajax/hz-newsletter-subscribe.php`.
+1. Загрузить `bitrix/ajax/hz-newsletter-subscribe.php` в папку `/ajax/` сайта (Контент -> Файлы и папки -> ajax -> Загрузить файл).
 2. На сервере вписать API-ключ Unisender в `$HZ_UNISENDER_API_KEY` (в репозиторий ключ не коммитить).
-3. Проверка: открыть `https://heartz.immo/local/ajax/hz-newsletter-subscribe.php` в браузере, должно показаться `{"error":"method_not_allowed"}`.
+3. Проверка: открыть `https://heartz.immo/ajax/hz-newsletter-subscribe.php` в браузере, должно показаться `{"error":"method_not_allowed"}`.
 
 ## 3. InSales
 
