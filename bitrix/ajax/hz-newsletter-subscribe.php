@@ -44,30 +44,59 @@ $HZ_UNISENDER_URL = 'https://api.unisender.com/ru/api/subscribe?format=json';
 
 // =====================================================
 
-// true, если форму отправил сам браузер (обычный POST без JS), а не скрипт виджета.
-// Тогда вместо JSON возвращаем посетителя на страницу сайта с сообщением
-// (#hz-newsletter-confirm / #hz-newsletter-error показываются через CSS :target).
-$HZ_FORM_POST = false;
+// Форма в подвале отправляется обычным POST в невидимый iframe под полем ввода
+// (target="hz-newsletter-frame"), поэтому страница магазина не перезагружается и
+// скрипт на стороне InSales не нужен. Для такого запроса отвечаем не JSON, а
+// маленькой HTML-страницей с сообщением в стиле сайта: она показывается в iframe
+// и через 10 секунд плавно исчезает (CSS-анимация).
+$HZ_CT = isset($_SERVER['CONTENT_TYPE']) ? strtolower((string)$_SERVER['CONTENT_TYPE']) : '';
+$HZ_FORM_POST = strpos($HZ_CT, 'application/x-www-form-urlencoded') === 0
+    || strpos($HZ_CT, 'multipart/form-data') === 0;
+
+function hz_frame_page($ok, $text)
+{
+    global $HZ_ALLOWED_ORIGINS;
+    http_response_code(200);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store');
+    // Разрешаем показывать ответ во фрейме только на сайте магазина.
+    // frame-ancestors отменяет X-Frame-Options, если его добавляет сервер.
+    header('Content-Security-Policy: frame-ancestors ' . implode(' ', $HZ_ALLOWED_ORIGINS));
+    $color = $ok ? '#232429' : '#E0282E';
+    $msg = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    $state = $ok ? 'ok' : 'error';
+    echo '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+        . '<meta name="color-scheme" content="light">'
+        . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<style>'
+        . 'html,body{margin:0;padding:0;background:transparent;overflow:hidden}'
+        . 'p{margin:0;padding:6px 0 0;font-family:"Helvetica","Helvetica Neue",Arial,sans-serif;'
+        . 'font-weight:400;font-size:12px;line-height:140%;letter-spacing:2px;text-transform:uppercase;'
+        . 'color:' . $color . ';opacity:0;animation:hz-in .35s ease forwards,hz-out .6s ease 10s forwards}'
+        . '@media (max-width:420px){p{font-size:10px;letter-spacing:1px}}'
+        . '@keyframes hz-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}'
+        . '@keyframes hz-out{from{opacity:1}to{opacity:0}}'
+        . '</style></head><body><p>' . $msg . '</p>'
+        . '<script>try{parent.postMessage({hzNewsletter:"' . $state . '"},"*")}catch(e){}</script>'
+        . '</body></html>';
+    exit;
+}
 
 function hz_respond($code, array $data)
 {
-    global $HZ_FORM_POST, $HZ_ALLOWED_ORIGINS;
+    global $HZ_FORM_POST;
     if ($HZ_FORM_POST) {
-        $back = isset($_SERVER['HTTP_REFERER']) ? (string)$_SERVER['HTTP_REFERER'] : '';
-        $backOk = false;
-        foreach ($HZ_ALLOWED_ORIGINS as $allowed) {
-            if (strpos($back, $allowed . '/') === 0 || $back === $allowed) {
-                $backOk = true;
-                break;
-            }
+        if (!empty($data['ok'])) {
+            hz_frame_page(true, 'Письмо уже у вас на почте - подтвердите подписку');
         }
-        if (!$backOk) {
-            $back = $HZ_ALLOWED_ORIGINS[0] . '/';
+        $err = isset($data['error']) ? $data['error'] : '';
+        if ($err === 'bad_email') {
+            hz_frame_page(false, 'Проверьте правильность e-mail');
         }
-        $back = preg_replace('/#.*$/', '', $back);
-        $anchor = !empty($data['ok']) ? 'hz-newsletter-confirm' : 'hz-newsletter-error';
-        header('Location: ' . $back . '#' . $anchor, true, 303);
-        exit;
+        if ($err === 'too_many_attempts') {
+            hz_frame_page(false, 'Слишком много попыток, попробуйте позже');
+        }
+        hz_frame_page(false, 'Не получилось подписаться, попробуйте ещё раз');
     }
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
@@ -102,15 +131,13 @@ if (!$originAllowed) {
 // --- Тело запроса: JSON (text/plain или application/json) или обычный form POST ---
 $body = [];
 $raw = file_get_contents('php://input');
-if ($raw !== false && $raw !== '') {
+if ($HZ_FORM_POST) {
+    $body = $_POST;
+} elseif ($raw !== false && $raw !== '') {
     $decoded = json_decode($raw, true);
     if (is_array($decoded)) {
         $body = $decoded;
     }
-}
-if (!$body && !empty($_POST)) {
-    $body = $_POST;
-    $HZ_FORM_POST = true;
 }
 
 // Honeypot: невидимое поле, человек его не заполняет. Боту отвечаем "успехом".

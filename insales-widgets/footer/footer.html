@@ -12,14 +12,8 @@
     footer .hz-newsletter .hz-newsletter__submit svg{display:block !important;width:22px !important;height:16px !important}
     footer .hz-newsletter .hz-newsletter__submit:hover{opacity:.6;transform:translateX(3px)}
     footer .hz-newsletter .hz-newsletter__submit:disabled{cursor:default;opacity:.3;transform:none}
-    footer .hz-newsletter .hz-newsletter__form.is-loading .hz-newsletter__submit svg{animation:hz-newsletter-pulse .9s ease-in-out infinite}
-    footer .hz-newsletter .hz-newsletter__form.has-error .hz-newsletter__field{border-bottom-color:#E0282E !important}
-    footer .hz-newsletter .hz-newsletter__status,footer .hz-newsletter .hz-newsletter__msg{margin:8px 0 0 !important;padding:0 !important;font-family:"Helvetica",Arial,sans-serif !important;font-weight:400 !important;font-style:normal !important;font-size:12px !important;line-height:140% !important;letter-spacing:2px !important;color:#232429 !important;text-transform:uppercase !important}
-    footer .hz-newsletter .hz-newsletter__status:empty{display:none !important}
-    footer .hz-newsletter .hz-newsletter__status.is-error,footer .hz-newsletter .hz-newsletter__msg.is-error{color:#E0282E !important}
-    footer .hz-newsletter .hz-newsletter__msg{display:none !important;scroll-margin-top:40vh}
-    footer .hz-newsletter .hz-newsletter__msg:target{display:block !important}
-    footer .hz-newsletter .hz-newsletter__note{display:block !important;margin:8px 0 0 !important;padding:0 !important;font-family:"Helvetica",Arial,sans-serif !important;font-weight:300 !important;font-style:normal !important;font-size:10px !important;line-height:140% !important;letter-spacing:.5px !important;color:#232429 !important;opacity:.6;text-transform:none !important}
+    footer .hz-newsletter .hz-newsletter__frame{display:block !important;width:100% !important;height:34px !important;margin:0 !important;padding:0 !important;border:0 !important;background:transparent !important;overflow:hidden !important}
+    footer .hz-newsletter .hz-newsletter__note{display:block !important;margin:0 !important;padding:0 !important;font-family:"Helvetica",Arial,sans-serif !important;font-weight:300 !important;font-style:normal !important;font-size:10px !important;line-height:140% !important;letter-spacing:.5px !important;color:#232429 !important;opacity:.6;text-transform:none !important}
     footer .hz-newsletter .hz-newsletter__note a{color:inherit !important;font:inherit !important;letter-spacing:inherit !important;text-transform:none !important;text-decoration:underline !important;text-underline-offset:2px}
     footer .hz-newsletter .hz-newsletter__note a:hover{opacity:.7}
     @media (max-width:1023px){footer .hz-newsletter{padding:24px 21px 6px !important}}
@@ -27,13 +21,11 @@
       footer .hz-newsletter .hz-newsletter__label{font-size:10px !important;letter-spacing:1px !important}
       footer .hz-newsletter .hz-newsletter__input{font-size:16px !important;letter-spacing:1px !important}
       footer .hz-newsletter .hz-newsletter__input::placeholder{letter-spacing:2px !important}
-      footer .hz-newsletter .hz-newsletter__status,footer .hz-newsletter .hz-newsletter__msg{font-size:10px !important;letter-spacing:1px !important}
     }
-    @keyframes hz-newsletter-pulse{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
   </style>
 
   <div class="hz-newsletter">
-    <form class="hz-newsletter__form" action="https://heartz.immo/ajax/hz-newsletter-subscribe.php" method="post" novalidate>
+    <form class="hz-newsletter__form" action="https://heartz.immo/ajax/hz-newsletter-subscribe.php" method="post" target="hz-newsletter-frame" novalidate>
       <label class="hz-newsletter__label" for="hz-newsletter-email">ПОДПИСКА НА НОВОСТИ HEARTZ</label>
       <div class="hz-newsletter__field">
         <input
@@ -57,9 +49,7 @@
           </svg>
         </button>
       </div>
-      <p class="hz-newsletter__status" role="status" aria-live="polite"></p>
-      <p id="hz-newsletter-confirm" class="hz-newsletter__msg">ПОЧТИ ГОТОВО! ПОДТВЕРДИТЕ ПОДПИСКУ В ПИСЬМЕ НА ПОЧТЕ</p>
-      <p id="hz-newsletter-error" class="hz-newsletter__msg is-error">НЕ ПОЛУЧИЛОСЬ ПОДПИСАТЬСЯ, ПРОВЕРЬТЕ E-MAIL И ПОПРОБУЙТЕ ЕЩЁ РАЗ</p>
+      <iframe name="hz-newsletter-frame" class="hz-newsletter__frame" title="Статус подписки" src="about:blank" scrolling="no" style="display:block;width:100%;height:34px;border:0;background:transparent;"></iframe>
       <p class="hz-newsletter__note">
         Нажимая на стрелку, вы соглашаетесь получать рассылку HEARTZ и&nbsp;с&nbsp;<a href="https://heartz.online/page/agreement">политикой конфиденциальности</a>
       </p>
@@ -129,97 +119,14 @@
 
 <script>
 (function () {
-  // Обработчик вешается один раз на весь документ (делегирование), поэтому форма
-  // работает, даже если конструктор InSales перерисует виджет после загрузки скрипта.
+  // Необязательное улучшение: если скрипт выполнится, после успешной подписки поле
+  // очищается. Сама отправка и сообщение работают и без него (через iframe).
   if (window.__hzNewsletterBound) return;
   window.__hzNewsletterBound = true;
-
-  var ENDPOINT = 'https://heartz.immo/ajax/hz-newsletter-subscribe.php';
-  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  var MESSAGES = {
-    empty: 'ВВЕДИТЕ E-MAIL',
-    invalid: 'ПРОВЕРЬТЕ ПРАВИЛЬНОСТЬ E-MAIL',
-    confirm: 'ПОЧТИ ГОТОВО! ПОДТВЕРДИТЕ ПОДПИСКУ В ПИСЬМЕ НА ПОЧТЕ',
-    limit: 'СЛИШКОМ МНОГО ПОПЫТОК, ПОПРОБУЙТЕ ПОЗЖЕ',
-    error: 'НЕ ПОЛУЧИЛОСЬ ПОДПИСАТЬСЯ, ПОПРОБУЙТЕ ЕЩЁ РАЗ'
-  };
-
-  function closestForm(el) {
-    while (el && el !== document) {
-      if (el.classList && el.classList.contains('hz-newsletter__form')) return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
-
-  function show(form, text, type) {
-    var status = form.querySelector('.hz-newsletter__status');
-    if (!status) return;
-    status.textContent = text;
-    status.className = 'hz-newsletter__status' + (type ? ' is-' + type : '');
-    if (type === 'error') form.classList.add('has-error'); else form.classList.remove('has-error');
-  }
-
-  document.addEventListener('input', function (e) {
-    var form = closestForm(e.target);
-    if (form && form.classList.contains('has-error')) show(form, '', '');
+  window.addEventListener('message', function (e) {
+    if (e.origin !== 'https://heartz.immo' || !e.data || e.data.hzNewsletter !== 'ok') return;
+    var inputs = document.querySelectorAll('.hz-newsletter__input');
+    for (var i = 0; i < inputs.length; i++) { inputs[i].value = ''; inputs[i].blur(); }
   });
-
-  document.addEventListener('submit', function (e) {
-    var form = closestForm(e.target);
-    if (!form) return;
-    e.preventDefault();
-    if (form.getAttribute('data-busy') === '1') return;
-
-    var input = form.querySelector('.hz-newsletter__input');
-    var honeypot = form.querySelector('.hz-newsletter__hp');
-    var button = form.querySelector('.hz-newsletter__submit');
-    var email = String(input.value || '').trim();
-
-    if (!email) { show(form, MESSAGES.empty, 'error'); input.focus(); return; }
-    if (email.length > 254 || !EMAIL_RE.test(email)) { show(form, MESSAGES.invalid, 'error'); input.focus(); return; }
-
-    form.setAttribute('data-busy', '1');
-    button.disabled = true;
-    form.classList.add('is-loading');
-    show(form, '', '');
-
-    var controller = window.AbortController ? new AbortController() : null;
-    var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
-
-    fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify({ email: email, source: 'footer', website: honeypot ? honeypot.value : '', page: location.href }),
-      signal: controller ? controller.signal : undefined
-    })
-      .then(function (res) {
-        return res.json().catch(function () { return {}; }).then(function (data) {
-          return { status: res.status, data: data };
-        });
-      })
-      .then(function (r) {
-        if (r.status === 200 && r.data && r.data.ok) {
-          input.value = '';
-          input.blur();
-          show(form, MESSAGES.confirm, 'success');
-        } else if (r.status === 400) {
-          show(form, MESSAGES.invalid, 'error');
-        } else if (r.status === 429) {
-          show(form, MESSAGES.limit, 'error');
-        } else {
-          show(form, MESSAGES.error, 'error');
-        }
-      })
-      .catch(function () {
-        show(form, MESSAGES.error, 'error');
-      })
-      .then(function () {
-        if (timer) clearTimeout(timer);
-        form.removeAttribute('data-busy');
-        button.disabled = false;
-        form.classList.remove('is-loading');
-      });
-  }, true);
 })();
 </script>
