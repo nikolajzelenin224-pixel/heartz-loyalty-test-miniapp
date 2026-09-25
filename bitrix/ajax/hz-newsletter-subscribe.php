@@ -18,11 +18,9 @@
 
 // ===================== НАСТРОЙКИ =====================
 
-// API-ключ Unisender (Настройки аккаунта, раздел Интеграция и API).
-// Заменить ВСТАВЬТЕ_КЛЮЧ_СЮДА на ключ, кавычки оставить. Править файл только
-// в Блокноте/редакторе кода и загружать заново, НЕ во встроенном редакторе Битрикса.
-// В репозиторий ключ не коммитить.
-$HZ_UNISENDER_API_KEY = 'ВСТАВЬТЕ_КЛЮЧ_СЮДА';
+// API-ключ Unisender хранится в ОТДЕЛЬНОМ файле hz-newsletter-key.php рядом с этим
+// (в той же папке /ajax). Так этот файл можно обновлять, не вписывая ключ заново.
+// При открытии hz-newsletter-key.php в браузере ключ не показывается.
 
 // Откуда пришла подписка -> ID списка Unisender
 $HZ_LISTS = [
@@ -53,7 +51,7 @@ $HZ_CT = isset($_SERVER['CONTENT_TYPE']) ? strtolower((string)$_SERVER['CONTENT_
 $HZ_FORM_POST = strpos($HZ_CT, 'application/x-www-form-urlencoded') === 0
     || strpos($HZ_CT, 'multipart/form-data') === 0;
 
-function hz_frame_page($ok, $text)
+function hz_frame_page($ok, $text, $code = '')
 {
     global $HZ_ALLOWED_ORIGINS;
     http_response_code(200);
@@ -63,6 +61,9 @@ function hz_frame_page($ok, $text)
     // frame-ancestors отменяет X-Frame-Options, если его добавляет сервер.
     header('Content-Security-Policy: frame-ancestors ' . implode(' ', $HZ_ALLOWED_ORIGINS));
     $color = $ok ? '#232429' : '#E0282E';
+    if ($code !== '') {
+        $text .= ': ' . substr(preg_replace('/[^a-z0-9_ ().:-]/i', '', $code), 0, 40);
+    }
     $msg = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
     $state = $ok ? 'ok' : 'error';
     echo '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
@@ -96,7 +97,9 @@ function hz_respond($code, array $data)
         if ($err === 'too_many_attempts') {
             hz_frame_page(false, 'Слишком много попыток, попробуйте позже');
         }
-        hz_frame_page(false, 'Не получилось подписаться, попробуйте ещё раз');
+        // Короткий код причины - чтобы по скриншоту было понятно, что сломалось.
+        $detail = isset($data['detail']) ? (string)$data['detail'] : '';
+        hz_frame_page(false, 'Не получилось подписаться', $err . ($detail !== '' ? ' ' . $detail : ''));
     }
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
@@ -125,7 +128,7 @@ if ($method !== 'POST') {
     hz_respond(405, ['error' => 'method_not_allowed']);
 }
 if (!$originAllowed) {
-    hz_respond(403, ['error' => 'forbidden_origin']);
+    hz_respond(403, ['error' => 'forbidden_origin', 'detail' => '(' . ($origin === '' ? 'empty' : $origin) . ')']);
 }
 
 // --- Тело запроса: JSON (text/plain или application/json) или обычный form POST ---
@@ -155,9 +158,19 @@ if (!isset($HZ_LISTS[$source])) {
     $source = 'footer';
 }
 
-$apiKey = trim($HZ_UNISENDER_API_KEY);
+$apiKey = '';
+$keyFile = __DIR__ . '/hz-newsletter-key.php';
+if (is_file($keyFile)) {
+    $loaded = include $keyFile;
+    if (is_string($loaded)) {
+        $apiKey = trim($loaded);
+    }
+}
 if ($apiKey === 'ВСТАВЬТЕ_КЛЮЧ_СЮДА') {
-    $apiKey = (string)getenv('UNISENDER_API_KEY');
+    $apiKey = '';
+}
+if ($apiKey === '') {
+    $apiKey = trim((string)getenv('UNISENDER_API_KEY'));
 }
 if ($apiKey === '') {
     error_log('HZ_NEWSLETTER: UNISENDER_API_KEY is not set');
@@ -243,7 +256,8 @@ $result = is_string($responseBody) ? json_decode($responseBody, true) : null;
 if ($httpCode !== 200 || !is_array($result) || !empty($result['error']) || !isset($result['result'])) {
     // Ключ в лог не попадает: логируем только ответ Unisender.
     error_log('HZ_NEWSLETTER: unisender failed, http=' . $httpCode . ' body=' . substr((string)$responseBody, 0, 500));
-    hz_respond(502, ['error' => 'save_failed']);
+    $uniCode = is_array($result) && isset($result['code']) ? (string)$result['code'] : 'http_' . $httpCode;
+    hz_respond(502, ['error' => 'save_failed', 'detail' => $uniCode]);
 }
 
 hz_respond(200, ['ok' => true, 'status' => 'confirm']);
