@@ -18,10 +18,11 @@
 
 // ===================== НАСТРОЙКИ =====================
 
-// API-ключ Unisender (Настройки аккаунта -> Интеграция и API).
-// Вписать на сервере. В репозиторий не коммитить. Можно вместо этого задать
-// переменную окружения UNISENDER_API_KEY.
-$HZ_UNISENDER_API_KEY = '';
+// API-ключ Unisender (Настройки аккаунта, раздел Интеграция и API).
+// Заменить ВСТАВЬТЕ_КЛЮЧ_СЮДА на ключ, кавычки оставить. Править файл только
+// в Блокноте/редакторе кода и загружать заново, НЕ во встроенном редакторе Битрикса.
+// В репозиторий ключ не коммитить.
+$HZ_UNISENDER_API_KEY = 'ВСТАВЬТЕ_КЛЮЧ_СЮДА';
 
 // Откуда пришла подписка -> ID списка Unisender
 $HZ_LISTS = [
@@ -103,7 +104,10 @@ if (!isset($HZ_LISTS[$source])) {
     $source = 'footer';
 }
 
-$apiKey = $HZ_UNISENDER_API_KEY !== '' ? $HZ_UNISENDER_API_KEY : (string)getenv('UNISENDER_API_KEY');
+$apiKey = trim($HZ_UNISENDER_API_KEY);
+if ($apiKey === 'ВСТАВЬТЕ_КЛЮЧ_СЮДА') {
+    $apiKey = (string)getenv('UNISENDER_API_KEY');
+}
 if ($apiKey === '') {
     error_log('HZ_NEWSLETTER: UNISENDER_API_KEY is not set');
     hz_respond(500, ['error' => 'not_configured']);
