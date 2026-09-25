@@ -60,7 +60,9 @@ function hz_frame_page($ok, $text, $code = '')
     // Разрешаем показывать ответ во фрейме только на сайте магазина.
     // frame-ancestors отменяет X-Frame-Options, если его добавляет сервер.
     header('Content-Security-Policy: frame-ancestors ' . implode(' ', $HZ_ALLOWED_ORIGINS));
-    $color = $ok ? '#232429' : '#E0282E';
+    // theme=dark - форма на тёмном фоне (попап «Уведомить»): светлый текст.
+    $dark = isset($_POST['theme']) && $_POST['theme'] === 'dark';
+    $color = $ok ? ($dark ? '#FFFFFF' : '#232429') : ($dark ? '#FF6B6B' : '#E0282E');
     if ($code !== '') {
         $text .= ': ' . substr(preg_replace('/[^a-z0-9_ ().:-]/i', '', $code), 0, 40);
     }
@@ -154,8 +156,21 @@ if (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 $source = isset($body['source']) ? (string)$body['source'] : 'footer';
+$tags = [];
 if (!isset($HZ_LISTS[$source])) {
     $source = 'footer';
+}
+$tags[] = 'site_' . $source;
+
+// Для «Уведомить о наличии»: метка товара, чтобы при поступлении выбрать в списке 71
+// только тех, кто ждал именно этот товар. Берём латинский адрес товара из ссылки
+// (/product/capital-distressed-t-shirt -> restock_capital-distressed-t-shirt).
+if ($source === 'restock' && !empty($body['product_url'])) {
+    $path = (string)parse_url((string)$body['product_url'], PHP_URL_PATH);
+    $slug = strtolower(preg_replace('/[^a-z0-9-]+/i', '', basename($path)));
+    if ($slug !== '') {
+        $tags[] = substr('restock_' . $slug, 0, 60);
+    }
 }
 
 $apiKey = '';
@@ -218,7 +233,7 @@ $params = http_build_query([
     'api_key'       => $apiKey,
     'list_ids'      => (string)$HZ_LISTS[$source],
     'fields[email]' => $email,
-    'tags'          => 'site_' . $source,
+    'tags'          => implode(',', $tags),
     'double_optin'  => 0,
     'request_ip'    => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
     'overwrite'     => 0,
